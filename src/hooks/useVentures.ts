@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { isDemoMode } from '../lib/demoMode';
+import { demoStore } from '../lib/demoStore';
 import type { Venture } from '../types/database';
 
 export function useVentures(includeArchived = false) {
@@ -9,6 +12,12 @@ export function useVentures(includeArchived = false) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    if (isDemoMode()) {
+      setError(null);
+      setVentures(demoStore.listVentures(includeArchived));
+      setLoading(false);
+      return;
+    }
     let query = supabase.from('ventures').select('*').order('name', { ascending: true });
     if (!includeArchived) {
       query = query.eq('active', true);
@@ -23,12 +32,24 @@ export function useVentures(includeArchived = false) {
     setLoading(false);
   }, [includeArchived]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  // useFocusEffect (not useEffect) so navigating back to an
+  // already-mounted screen — e.g. after adding a venture from the "+"
+  // form — re-fetches instead of showing stale data. React Navigation
+  // keeps screens mounted rather than unmounting them on back, so a
+  // plain mount-only effect only ever fires once.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const addVenture = useCallback(
     async (name: string) => {
+      if (isDemoMode()) {
+        const result = demoStore.addVenture(name);
+        await refresh();
+        return result;
+      }
       const { error: insertError } = await supabase.from('ventures').insert({ name, active: true });
       if (insertError) return { error: insertError.message };
       await refresh();
@@ -39,6 +60,11 @@ export function useVentures(includeArchived = false) {
 
   const updateVenture = useCallback(
     async (id: string, updates: Partial<Pick<Venture, 'name' | 'active'>>) => {
+      if (isDemoMode()) {
+        const result = demoStore.updateVenture(id, updates);
+        await refresh();
+        return result;
+      }
       const { error: updateError } = await supabase.from('ventures').update(updates).eq('id', id);
       if (updateError) return { error: updateError.message };
       await refresh();
@@ -61,6 +87,9 @@ export function useVentures(includeArchived = false) {
 }
 
 export async function fetchAllVentures(): Promise<Venture[]> {
+  if (isDemoMode()) {
+    return demoStore.fetchAllVentures();
+  }
   const { data, error } = await supabase.from('ventures').select('*').order('name', { ascending: true });
   if (error) throw new Error(error.message);
   return data ?? [];

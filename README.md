@@ -29,7 +29,25 @@ multiple side ventures, for IRS-compliant deductions. Built with Expo
 8. Odometer reading reminders — an in-app banner near Jan 1 / Dec 31 on the
    Settings screen (no push notifications; see "Notifications" below)
 
+Plus a **Demo Mode** ("Try Demo" on the sign-in screen) for trying the app
+with zero setup — see below.
+
 ## Getting Started
+
+### Just want to click through it? (zero setup)
+
+```bash
+npm install --legacy-peer-deps
+npm run web
+```
+
+Open the printed `localhost` URL, hit **Try Demo** on the sign-in screen.
+That's a real, fully interactive build of the app — add/edit ventures,
+log trips and expenses, one-tap reassign, export — running against an
+in-memory sample dataset instead of Supabase. Nothing is saved and it
+resets on reload; it exists purely so you can see the app work without
+creating an account first. (Works in Expo Go / a simulator too, not just
+web — `npm start` and press "Try Demo" there as well.)
 
 ### 1. Create a Supabase project
 
@@ -135,6 +153,19 @@ export const MILEAGE_RATE_SCHEDULE: MileageRatePeriod[] = [
 Each trip's deduction is calculated from its own date, so add a new period
 to this list whenever the IRS publishes a new rate (including future
 mid-year splits).
+
+## Demo Mode
+
+`src/lib/demoMode.ts` (a module-level flag) and `src/lib/demoStore.ts` (an
+in-memory CRUD store seeded with sample data) let the whole app run
+without Supabase. Every data hook (`useVentures`, `useTrips`,
+`useExpenses`, `useOdometerReadings`) and `src/lib/receipts.ts` branch on
+`isDemoMode()` at the top of each operation — same public API either way,
+so screens don't know or care which backend they're talking to.
+`useAuth().enterDemoMode()` sets both the flag and a fake session; signing
+out clears both. It's exercised the same way the rest of the app is: real
+clicks in a real browser (see `Testing & Verification`), not just unit
+tests against the store in isolation.
 
 ## Notifications
 

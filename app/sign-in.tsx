@@ -13,7 +13,7 @@ import { Redirect } from 'expo-router';
 import { useAuth } from '../src/hooks/useAuth';
 
 export default function SignIn() {
-  const { session, signIn } = useAuth();
+  const { session, signIn, enterDemoMode } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +67,19 @@ export default function SignIn() {
       >
         {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
       </Pressable>
+
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <Pressable style={styles.demoButton} onPress={enterDemoMode}>
+        <Text style={styles.demoButtonText}>Try Demo</Text>
+      </Pressable>
+      <Text style={styles.demoHint}>
+        Explore the app with sample data — no account needed. Nothing you do in demo mode is saved.
+      </Text>
     </KeyboardAvoidingView>
   );
 }
@@ -118,5 +131,39 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e5ea',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#999',
+    fontSize: 13,
+  },
+  demoButton: {
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  demoButtonText: {
+    color: '#2563eb',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  demoHint: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 10,
   },
 });

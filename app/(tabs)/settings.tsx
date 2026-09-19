@@ -7,7 +7,7 @@ import { colors } from '../../src/lib/theme';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { session, signOut } = useAuth();
+  const { session, signOut, demoMode } = useAuth();
   const { readings, deleteReading } = useOdometerReadings();
   const reminder = odometerReminder(readings);
 
@@ -20,6 +20,15 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {demoMode ? (
+        <View style={styles.demoBanner}>
+          <Text style={styles.demoBannerText}>
+            You're in Demo Mode. Sample data only — nothing here is saved, and it resets if you
+            reload. Sign out to connect a real account.
+          </Text>
+        </View>
+      ) : null}
+
       {reminder ? (
         <View style={styles.reminderBanner}>
           <Text style={styles.reminderText}>{reminder}</Text>
@@ -58,9 +67,9 @@ export default function SettingsScreen() {
       </Text>
 
       <Text style={styles.sectionLabel}>Account</Text>
-      <Text style={styles.hint}>{session?.user.email}</Text>
+      <Text style={styles.hint}>{demoMode ? 'Demo Mode (no account)' : session?.user.email}</Text>
       <Pressable style={styles.signOutButton} onPress={() => signOut()}>
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={styles.signOutText}>{demoMode ? 'Exit Demo Mode' : 'Sign Out'}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -74,6 +83,17 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 48,
+  },
+  demoBanner: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
+  demoBannerText: {
+    color: '#92400e',
+    fontSize: 13,
+    lineHeight: 18,
   },
   reminderBanner: {
     backgroundColor: colors.primaryMuted,

@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { isDemoMode } from '../lib/demoMode';
+import { demoStore } from '../lib/demoStore';
 import type { Trip } from '../types/database';
 
 export interface TripFilter {
@@ -17,6 +20,12 @@ export function useTrips(filter: TripFilter = {}) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    if (isDemoMode()) {
+      setError(null);
+      setTrips(demoStore.listTrips(filter));
+      setLoading(false);
+      return;
+    }
     let query = supabase.from('trips').select('*').order('date', { ascending: false });
     if (filter.ventureId) query = query.eq('venture_id', filter.ventureId);
     if (filter.startDate) query = query.gte('date', filter.startDate);
@@ -31,12 +40,19 @@ export function useTrips(filter: TripFilter = {}) {
     setLoading(false);
   }, [filter.ventureId, filter.startDate, filter.endDate]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const addTrip = useCallback(
     async (input: TripInput) => {
+      if (isDemoMode()) {
+        const result = demoStore.addTrip(input);
+        await refresh();
+        return result;
+      }
       const { error: insertError } = await supabase.from('trips').insert(input);
       if (insertError) return { error: insertError.message };
       await refresh();
@@ -47,6 +63,11 @@ export function useTrips(filter: TripFilter = {}) {
 
   const updateTrip = useCallback(
     async (id: string, updates: Partial<TripInput>) => {
+      if (isDemoMode()) {
+        const result = demoStore.updateTrip(id, updates);
+        await refresh();
+        return result;
+      }
       const { error: updateError } = await supabase.from('trips').update(updates).eq('id', id);
       if (updateError) return { error: updateError.message };
       await refresh();
@@ -62,6 +83,11 @@ export function useTrips(filter: TripFilter = {}) {
 
   const deleteTrip = useCallback(
     async (id: string) => {
+      if (isDemoMode()) {
+        const result = demoStore.deleteTrip(id);
+        await refresh();
+        return result;
+      }
       const { error: deleteError } = await supabase.from('trips').delete().eq('id', id);
       if (deleteError) return { error: deleteError.message };
       await refresh();
@@ -74,6 +100,9 @@ export function useTrips(filter: TripFilter = {}) {
 }
 
 export async function fetchTrip(id: string): Promise<Trip | null> {
+  if (isDemoMode()) {
+    return demoStore.fetchTrip(id);
+  }
   const { data, error } = await supabase.from('trips').select('*').eq('id', id).maybeSingle();
   if (error) throw new Error(error.message);
   return data;
