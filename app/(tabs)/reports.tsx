@@ -7,7 +7,7 @@ import { VentureChipRow } from '../../src/components/VentureChipRow';
 import { computeVentureRollups, sumRollups } from '../../src/lib/reportCalculations';
 import { formatCurrency, formatMiles } from '../../src/lib/format';
 import { tripsToCsv, expensesToCsv } from '../../src/lib/csv';
-import { shareCsv, sharePdfFromHtml } from '../../src/lib/exportFiles';
+import { shareCsv, sharePdfFromHtml, sanitizeFilenamePart } from '../../src/lib/exportFiles';
 import { buildPnlReportHtml } from '../../src/lib/pdfReport';
 import { colors } from '../../src/lib/theme';
 
@@ -43,7 +43,9 @@ export default function ReportsScreen() {
   const handleExportCsv = async () => {
     const tripsCsv = tripsToCsv(trips, ventureById);
     const expensesCsv = expensesToCsv(expenses, ventureById);
-    const scope = ventureFilter ? ventureById.get(ventureFilter)?.name ?? 'venture' : 'all-ventures';
+    const scope = sanitizeFilenamePart(
+      ventureFilter ? ventureById.get(ventureFilter)?.name ?? 'venture' : 'all-ventures'
+    );
     await shareCsv(`trips-${scope}-${preset}.csv`, tripsCsv);
     await shareCsv(`expenses-${scope}-${preset}.csv`, expensesCsv);
   };

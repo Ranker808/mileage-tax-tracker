@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { deleteReceiptPhoto } from '../lib/receipts';
 import type { Expense } from '../types/database';
 
 export interface ExpenseFilter {
@@ -57,8 +58,16 @@ export function useExpenses(filter: ExpenseFilter = {}) {
 
   const deleteExpense = useCallback(
     async (id: string) => {
+      const { data: existing } = await supabase
+        .from('expenses')
+        .select('receipt_photo_url')
+        .eq('id', id)
+        .maybeSingle();
       const { error: deleteError } = await supabase.from('expenses').delete().eq('id', id);
       if (deleteError) return { error: deleteError.message };
+      if (existing?.receipt_photo_url) {
+        await deleteReceiptPhoto(existing.receipt_photo_url);
+      }
       await refresh();
       return { error: null };
     },

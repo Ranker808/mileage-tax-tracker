@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useVentures } from '../hooks/useVentures';
 import { VentureChipRow } from './VentureChipRow';
 import { useAuth } from '../hooks/useAuth';
-import { uploadReceiptPhoto, getReceiptSignedUrl } from '../lib/receipts';
+import { uploadReceiptPhoto, getReceiptSignedUrl, deleteReceiptPhoto } from '../lib/receipts';
 import { todayIso } from '../lib/format';
 import { colors } from '../lib/theme';
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../types/database';
@@ -43,6 +43,13 @@ export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
 
   const effectiveVentureId = ventureId || ventures[0]?.id || '';
 
+  useEffect(() => {
+    if (initial?.receipt_photo_url) {
+      getReceiptSignedUrl(initial.receipt_photo_url).then(setReceiptPreviewUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const pickAndUploadPhoto = async (source: 'camera' | 'library') => {
     if (!session?.user.id) return;
     const permission =
@@ -63,11 +70,15 @@ export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
 
     setUploadingPhoto(true);
     setError(null);
+    const previousPath = receiptPath;
     try {
       const path = await uploadReceiptPhoto(result.assets[0].uri, session.user.id);
       setReceiptPath(path);
       const signedUrl = await getReceiptSignedUrl(path);
       setReceiptPreviewUrl(signedUrl);
+      if (previousPath && previousPath !== path) {
+        await deleteReceiptPhoto(previousPath);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to upload photo.');
     } finally {

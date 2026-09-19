@@ -2,6 +2,8 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 
+export { sanitizeFilenamePart } from './filenames';
+
 function writeCacheFile(filename: string, content: string): File {
   const file = new File(Paths.cache, filename);
   if (file.exists) file.delete();

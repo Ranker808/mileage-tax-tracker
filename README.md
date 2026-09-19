@@ -71,6 +71,40 @@ template's own transitive deps — unrelated to anything in this app.)
 
 Then open the app in Expo Go, an iOS/Android simulator, or a dev build.
 
+## Testing & Verification
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm test            # vitest run — pure-logic unit tests
+```
+
+`npm test` covers the mileage rate engine, report rollup math, CSV
+escaping/formatting, filename sanitization, and the odometer reminder
+window — the parts of the app that are pure functions and don't need a
+backend.
+
+The parts that *do* need a backend (RLS policies, constraints, the
+odometer upsert) are covered separately in `supabase/tests/`, which spins
+up a throwaway local Postgres database, applies the real
+`supabase/migrations/0001_init.sql` unmodified, and runs it as two
+simulated users through a non-superuser role (RLS is a no-op for
+superusers, so this matters) to assert real isolation:
+
+```bash
+supabase/tests/run.sh
+```
+
+It checks, against an actual database rather than by inspection: a new
+venture's `user_id` defaults to the signed-in user; a second user sees
+none of the first user's ventures/trips/expenses/odometer readings; a
+user can't insert a row claiming someone else's `user_id`; a user can't
+update another user's row even by guessing its id; the private receipts
+storage bucket is isolated the same way; the odometer `(user_id, date)`
+upsert updates in place instead of duplicating; deleting a venture with
+logged trips is blocked; and the `miles > 0` / valid-category check
+constraints reject bad data. Needs a local Postgres reachable as a
+superuser (`createdb`/`dropdb`/`psql` on your PATH) — nothing else.
+
 ## Project Structure
 
 ```
