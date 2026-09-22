@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeVentureRollups, sumRollups } from './reportCalculations';
+import { computeVentureRollups, groupExpensesByCategory, groupTripsByMonth, sumRollups } from './reportCalculations';
 import type { Expense, Trip, Venture } from '../types/database';
 
 const ventures: Venture[] = [
@@ -132,5 +132,54 @@ describe('sumRollups', () => {
       tripCount: 0,
       expenseCount: 0,
     });
+  });
+});
+
+describe('groupTripsByMonth', () => {
+  it('sums miles and deduction per calendar month, sorted chronologically', () => {
+    const trips = [
+      trip({ id: 't1', date: '2026-02-10', miles: 50 }), // H1 rate 0.725
+      trip({ id: 't2', date: '2026-01-05', miles: 100 }),
+      trip({ id: 't3', date: '2026-01-20', miles: 20 }),
+    ];
+    const rollups = groupTripsByMonth(trips);
+    expect(rollups.map((r) => r.month)).toEqual(['2026-01', '2026-02']);
+    expect(rollups[0].totalMiles).toBe(120);
+    expect(rollups[0].totalDeduction).toBe(87); // 120 * 0.725
+    expect(rollups[1].totalMiles).toBe(50);
+  });
+
+  it('returns an empty list for no trips', () => {
+    expect(groupTripsByMonth([])).toEqual([]);
+  });
+
+  it('a trip on a date with no configured rate contributes 0 deduction without throwing', () => {
+    const trips = [trip({ date: '2099-01-01', miles: 100 })];
+    expect(() => groupTripsByMonth(trips)).not.toThrow();
+    expect(groupTripsByMonth(trips)[0].totalDeduction).toBe(0);
+  });
+});
+
+describe('groupExpensesByCategory', () => {
+  it('sums amounts per category, largest first', () => {
+    const expenses = [
+      expense({ id: 'e1', category: 'gas', amount: 30 }),
+      expense({ id: 'e2', category: 'insurance', amount: 100 }),
+      expense({ id: 'e3', category: 'gas', amount: 20 }),
+    ];
+    const rollups = groupExpensesByCategory(expenses);
+    expect(rollups).toEqual([
+      { category: 'insurance', total: 100 },
+      { category: 'gas', total: 50 },
+    ]);
+  });
+
+  it('only includes categories that were actually logged', () => {
+    const rollups = groupExpensesByCategory([expense({ category: 'other', amount: 5 })]);
+    expect(rollups).toEqual([{ category: 'other', total: 5 }]);
+  });
+
+  it('returns an empty list for no expenses', () => {
+    expect(groupExpensesByCategory([])).toEqual([]);
   });
 });

@@ -5,11 +5,13 @@ import { useTrips } from '../../src/hooks/useTrips';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useVentures } from '../../src/hooks/useVentures';
 import { VentureChipRow } from '../../src/components/VentureChipRow';
-import { computeVentureRollups, sumRollups } from '../../src/lib/reportCalculations';
+import { BarChart } from '../../src/components/BarChart';
+import { computeVentureRollups, groupExpensesByCategory, groupTripsByMonth, sumRollups } from '../../src/lib/reportCalculations';
 import { formatCurrency, formatMiles } from '../../src/lib/format';
 import { tripsToCsv, expensesToCsv } from '../../src/lib/csv';
 import { shareCsv, sharePdfFromHtml, sanitizeFilenamePart } from '../../src/lib/exportFiles';
-import { buildPnlReportHtml } from '../../src/lib/pdfReport';
+import { buildDetailedReportHtml } from '../../src/lib/pdfReport';
+import { EXPENSE_CATEGORY_META } from '../../src/lib/expenseCategories';
 import { colors, radius, shadow, shadowSm, spacing, type, ventureAccent } from '../../src/lib/theme';
 
 type RangePreset = 'ytd' | 'lastYear' | 'all' | 'custom';
@@ -56,6 +58,25 @@ export default function ReportsScreen() {
 
   const ventureById = useMemo(() => new Map(ventures.map((v) => [v.id, v])), [ventures]);
 
+  const monthlyChartItems = useMemo(
+    () =>
+      groupTripsByMonth(trips).map((r) => ({
+        label: r.label,
+        value: r.totalDeduction,
+        displayValue: formatCurrency(r.totalDeduction),
+      })),
+    [trips]
+  );
+  const categoryChartItems = useMemo(
+    () =>
+      groupExpensesByCategory(expenses).map((r) => ({
+        label: EXPENSE_CATEGORY_META[r.category].label,
+        value: r.total,
+        displayValue: formatCurrency(r.total),
+      })),
+    [expenses]
+  );
+
   const handleExportCsv = async () => {
     setExporting('csv');
     try {
@@ -75,11 +96,14 @@ export default function ReportsScreen() {
     setExporting('pdf');
     try {
       const scope = ventureFilter ? ventureById.get(ventureFilter)?.name ?? 'Venture' : 'All Ventures';
-      const html = buildPnlReportHtml({
+      const html = buildDetailedReportHtml({
         title: `P&L Report — ${scope}`,
         rangeLabel: label,
         rollups: visibleRollups,
         totals,
+        trips,
+        expenses,
+        ventureById,
       });
       await sharePdfFromHtml(html, `pnl-report-${preset}.pdf`);
     } finally {
@@ -188,6 +212,25 @@ export default function ReportsScreen() {
           )}
         </>
       ) : null}
+
+      <Text style={styles.sectionLabel}>Monthly trend</Text>
+      <View style={styles.chartCard}>
+        <BarChart
+          items={monthlyChartItems}
+          orientation="vertical"
+          emptyMessage="No trips logged in this range yet."
+        />
+      </View>
+
+      <Text style={styles.sectionLabel}>Expenses by category</Text>
+      <View style={styles.chartCard}>
+        <BarChart
+          items={categoryChartItems}
+          orientation="horizontal"
+          barColor={colors.warning}
+          emptyMessage="No expenses logged in this range yet."
+        />
+      </View>
 
       <Text style={styles.sectionLabel}>Export</Text>
       <Text style={styles.hint}>Full export, no limits, no paywall — it's your data.</Text>
@@ -326,6 +369,12 @@ const styles = StyleSheet.create({
     ...type.body,
     color: colors.textMuted,
     fontSize: 13.5,
+  },
+  chartCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    ...shadowSm,
   },
   ventureRow: {
     flexDirection: 'row',
