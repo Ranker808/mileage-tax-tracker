@@ -64,6 +64,27 @@ describe('demoStore trips', () => {
     demoStore.deleteTrip(trip.id);
     expect(demoStore.fetchTrip(trip.id)).toBeNull();
   });
+
+  it('bulkDeleteTrips removes exactly the given ids and leaves the rest', () => {
+    const all = demoStore.listTrips({});
+    const [first, second] = all;
+    demoStore.bulkDeleteTrips([first.id, second.id]);
+    const remaining = demoStore.listTrips({});
+    expect(remaining).toHaveLength(all.length - 2);
+    expect(remaining.some((t) => t.id === first.id || t.id === second.id)).toBe(false);
+  });
+
+  it('bulkUpdateTripVenture reassigns exactly the given ids and leaves the rest', () => {
+    const all = demoStore.listTrips({});
+    const [first, second, ...rest] = all;
+    const targetVenture = first.venture_id === 'v3' ? 'v2' : 'v3';
+    demoStore.bulkUpdateTripVenture([first.id, second.id], targetVenture);
+    expect(demoStore.fetchTrip(first.id)?.venture_id).toBe(targetVenture);
+    expect(demoStore.fetchTrip(second.id)?.venture_id).toBe(targetVenture);
+    for (const t of rest) {
+      expect(demoStore.fetchTrip(t.id)?.venture_id).toBe(t.venture_id);
+    }
+  });
 });
 
 describe('demoStore expenses', () => {

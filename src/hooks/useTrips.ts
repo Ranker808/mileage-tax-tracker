@@ -96,7 +96,50 @@ export function useTrips(filter: TripFilter = {}) {
     [refresh]
   );
 
-  return { trips, loading, error, refresh, addTrip, updateTrip, reassignVenture, deleteTrip };
+  const bulkDeleteTrips = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return { error: null };
+      if (isDemoMode()) {
+        const result = demoStore.bulkDeleteTrips(ids);
+        await refresh();
+        return result;
+      }
+      const { error: deleteError } = await supabase.from('trips').delete().in('id', ids);
+      if (deleteError) return { error: deleteError.message };
+      await refresh();
+      return { error: null };
+    },
+    [refresh]
+  );
+
+  const bulkReassignVenture = useCallback(
+    async (ids: string[], ventureId: string) => {
+      if (ids.length === 0) return { error: null };
+      if (isDemoMode()) {
+        const result = demoStore.bulkUpdateTripVenture(ids, ventureId);
+        await refresh();
+        return result;
+      }
+      const { error: updateError } = await supabase.from('trips').update({ venture_id: ventureId }).in('id', ids);
+      if (updateError) return { error: updateError.message };
+      await refresh();
+      return { error: null };
+    },
+    [refresh]
+  );
+
+  return {
+    trips,
+    loading,
+    error,
+    refresh,
+    addTrip,
+    updateTrip,
+    reassignVenture,
+    deleteTrip,
+    bulkDeleteTrips,
+    bulkReassignVenture,
+  };
 }
 
 export async function fetchTrip(id: string): Promise<Trip | null> {

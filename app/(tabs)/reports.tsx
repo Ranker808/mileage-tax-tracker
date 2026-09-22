@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTrips } from '../../src/hooks/useTrips';
 import { useExpenses } from '../../src/hooks/useExpenses';
@@ -12,9 +12,14 @@ import { shareCsv, sharePdfFromHtml, sanitizeFilenamePart } from '../../src/lib/
 import { buildPnlReportHtml } from '../../src/lib/pdfReport';
 import { colors, radius, shadow, shadowSm, spacing, type, ventureAccent } from '../../src/lib/theme';
 
-type RangePreset = 'ytd' | 'lastYear' | 'all';
+type RangePreset = 'ytd' | 'lastYear' | 'all' | 'custom';
 
-function rangeForPreset(preset: RangePreset): { start: string | null; end: string | null; label: string } {
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function rangeForPreset(
+  preset: RangePreset,
+  custom: { from: string; to: string }
+): { start: string | null; end: string | null; label: string } {
   const now = new Date();
   const year = now.getFullYear();
   if (preset === 'ytd') {
@@ -23,6 +28,13 @@ function rangeForPreset(preset: RangePreset): { start: string | null; end: strin
   if (preset === 'lastYear') {
     return { start: `${year - 1}-01-01`, end: `${year - 1}-12-31`, label: `${year - 1}` };
   }
+  if (preset === 'custom') {
+    const start = DATE_RE.test(custom.from) ? custom.from : null;
+    const end = DATE_RE.test(custom.to) ? custom.to : null;
+    const label =
+      start && end ? `${start} to ${end}` : start ? `From ${start}` : end ? `Through ${end}` : 'Custom range';
+    return { start, end, label };
+  }
   return { start: null, end: null, label: 'All time' };
 }
 
@@ -30,7 +42,9 @@ export default function ReportsScreen() {
   const { ventures } = useVentures(true);
   const [ventureFilter, setVentureFilter] = useState<string | null>(null);
   const [preset, setPreset] = useState<RangePreset>('ytd');
-  const { start, end, label } = rangeForPreset(preset);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const { start, end, label } = rangeForPreset(preset, { from: customFrom, to: customTo });
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
   const { trips, loading: tripsLoading } = useTrips({ ventureId: ventureFilter, startDate: start, endDate: end });
@@ -112,18 +126,39 @@ export default function ReportsScreen() {
 
       <Text style={styles.sectionLabel}>Date range</Text>
       <View style={styles.presetRow}>
-        {(['ytd', 'lastYear', 'all'] as RangePreset[]).map((p) => (
+        {(['ytd', 'lastYear', 'all', 'custom'] as RangePreset[]).map((p) => (
           <Pressable
             key={p}
             style={[styles.presetChip, preset === p && styles.presetChipSelected]}
             onPress={() => setPreset(p)}
           >
             <Text style={[styles.presetChipText, preset === p && styles.presetChipTextSelected]}>
-              {p === 'ytd' ? 'This year' : p === 'lastYear' ? 'Last year' : 'All time'}
+              {p === 'ytd' ? 'This year' : p === 'lastYear' ? 'Last year' : p === 'all' ? 'All time' : 'Custom'}
             </Text>
           </Pressable>
         ))}
       </View>
+
+      {preset === 'custom' ? (
+        <View style={styles.customRangeRow}>
+          <TextInput
+            style={styles.customRangeInput}
+            value={customFrom}
+            onChangeText={setCustomFrom}
+            placeholder="From YYYY-MM-DD"
+            placeholderTextColor={colors.textFaint}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.customRangeInput}
+            value={customTo}
+            onChangeText={setCustomTo}
+            placeholder="To YYYY-MM-DD"
+            placeholderTextColor={colors.textFaint}
+            autoCapitalize="none"
+          />
+        </View>
+      ) : null}
 
       {!ventureFilter ? (
         <>
@@ -270,6 +305,22 @@ const styles = StyleSheet.create({
   },
   presetChipTextSelected: {
     color: colors.white,
+  },
+  customRangeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  customRangeInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    fontSize: 12.5,
+    color: colors.ink,
+    backgroundColor: colors.card,
   },
   hint: {
     ...type.body,

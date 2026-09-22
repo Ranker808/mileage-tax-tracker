@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../../src/hooks/useExpenses';
@@ -17,17 +17,79 @@ const CATEGORY_ICON: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
   other: 'ellipsis-horizontal-circle-outline',
 };
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export default function ExpensesScreen() {
   const router = useRouter();
   const { ventures } = useVentures();
   const [ventureFilter, setVentureFilter] = useState<string | null>(null);
-  const { expenses, loading, refresh } = useExpenses({ ventureId: ventureFilter });
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const { expenses, loading, refresh } = useExpenses({
+    ventureId: ventureFilter,
+    startDate: DATE_RE.test(dateFrom) ? dateFrom : null,
+    endDate: DATE_RE.test(dateTo) ? dateTo : null,
+  });
 
   const ventureById = useMemo(() => new Map(ventures.map((v) => [v.id, v])), [ventures]);
+
+  const visibleExpenses = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return expenses;
+    return expenses.filter((e) => {
+      const venture = ventureById.get(e.venture_id);
+      return (
+        e.category.toLowerCase().includes(q) ||
+        (e.notes ?? '').toLowerCase().includes(q) ||
+        (venture?.name ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [expenses, search, ventureById]);
 
   return (
     <View style={styles.container}>
       <View style={styles.filterBar}>
+        <View style={styles.searchRow}>
+          <Ionicons name="search" size={16} color={colors.textFaint} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search category, notes, venture…"
+            placeholderTextColor={colors.textFaint}
+          />
+        </View>
+        <View style={styles.dateRow}>
+          <TextInput
+            style={styles.dateInput}
+            value={dateFrom}
+            onChangeText={setDateFrom}
+            placeholder="From YYYY-MM-DD"
+            placeholderTextColor={colors.textFaint}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.dateInput}
+            value={dateTo}
+            onChangeText={setDateTo}
+            placeholder="To YYYY-MM-DD"
+            placeholderTextColor={colors.textFaint}
+            autoCapitalize="none"
+          />
+          {dateFrom || dateTo ? (
+            <Pressable
+              style={styles.clearDateButton}
+              onPress={() => {
+                setDateFrom('');
+                setDateTo('');
+              }}
+              hitSlop={8}
+            >
+              <Ionicons name="close-circle" size={18} color={colors.textFaint} />
+            </Pressable>
+          ) : null}
+        </View>
         <VentureChipRow
           ventures={ventures}
           selectedId={ventureFilter}
@@ -38,15 +100,19 @@ export default function ExpensesScreen() {
       </View>
 
       <FlatList
-        data={expenses}
+        data={visibleExpenses}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={expenses.length === 0 ? styles.emptyContainer : styles.listContent}
+        contentContainerStyle={visibleExpenses.length === 0 ? styles.emptyContainer : styles.listContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
         ListEmptyComponent={
           <EmptyState
             icon="receipt-outline"
-            title="No expenses yet"
-            message="Log gas, maintenance, or supply costs against a venture."
+            title={expenses.length === 0 ? 'No expenses yet' : 'No matches'}
+            message={
+              expenses.length === 0
+                ? 'Log gas, maintenance, or supply costs against a venture.'
+                : 'Try a different search or clear your filters.'
+            }
           />
         }
         renderItem={({ item }) => {
@@ -105,6 +171,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: 4,
+    gap: spacing.sm,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+  },
+  searchIcon: {
+    marginRight: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 14.5,
+    color: colors.ink,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  dateInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    fontSize: 12.5,
+    color: colors.ink,
+    backgroundColor: colors.card,
+  },
+  clearDateButton: {
+    padding: 2,
   },
   listContent: {
     padding: spacing.lg,

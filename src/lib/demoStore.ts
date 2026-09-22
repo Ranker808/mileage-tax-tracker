@@ -99,6 +99,16 @@ export const demoStore = {
     trips = trips.filter((t) => t.id !== id);
     return { error: null };
   },
+  bulkDeleteTrips(ids: string[]): { error: string | null } {
+    const idSet = new Set(ids);
+    trips = trips.filter((t) => !idSet.has(t.id));
+    return { error: null };
+  },
+  bulkUpdateTripVenture(ids: string[], ventureId: string): { error: string | null } {
+    const idSet = new Set(ids);
+    trips = trips.map((t) => (idSet.has(t.id) ? { ...t, venture_id: ventureId } : t));
+    return { error: null };
+  },
 
   // ---- expenses ----
   listExpenses(filter: { ventureId?: string | null; startDate?: string | null; endDate?: string | null }): Expense[] {
