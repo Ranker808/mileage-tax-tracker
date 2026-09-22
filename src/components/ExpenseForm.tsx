@@ -7,6 +7,7 @@ import { VentureChipRow } from './VentureChipRow';
 import { useAuth } from '../hooks/useAuth';
 import { uploadReceiptPhoto, getReceiptSignedUrl, deleteReceiptPhoto } from '../lib/receipts';
 import { todayIso } from '../lib/format';
+import { EXPENSE_CATEGORY_META } from '../lib/expenseCategories';
 import { colors, radius, spacing, type } from '../lib/theme';
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../types/database';
 import type { ExpenseInput } from '../hooks/useExpenses';
@@ -27,13 +28,6 @@ interface Props {
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-const CATEGORY_ICON: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
-  gas: 'flame-outline',
-  maintenance: 'construct-outline',
-  supplies: 'cube-outline',
-  other: 'ellipsis-horizontal-circle-outline',
-};
 
 export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
   const { session } = useAuth();
@@ -152,12 +146,12 @@ export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
             onPress={() => setCategory(c)}
           >
             <Ionicons
-              name={CATEGORY_ICON[c]}
+              name={EXPENSE_CATEGORY_META[c].icon}
               size={15}
               color={category === c ? colors.white : colors.textMuted}
             />
             <Text style={[styles.categoryChipText, category === c && styles.categoryChipTextSelected]}>
-              {c[0].toUpperCase() + c.slice(1)}
+              {EXPENSE_CATEGORY_META[c].label}
             </Text>
           </Pressable>
         ))}

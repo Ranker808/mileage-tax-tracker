@@ -1,5 +1,6 @@
 import type { Expense, Trip, Venture } from '../types/database';
 import { calculateDeduction, getMileageRateForDate } from './mileageRates';
+import { EXPENSE_CATEGORY_META } from './expenseCategories';
 
 function csvEscape(value: string | number): string {
   const str = String(value);
@@ -23,6 +24,7 @@ export function tripsToCsv(trips: Trip[], ventureById: Map<string, Venture>): st
     'Miles',
     'Rate/Mile',
     'Deduction',
+    'Notes',
   ]);
   const rows = trips.map((trip) => {
     let rate = 0;
@@ -42,6 +44,7 @@ export function tripsToCsv(trips: Trip[], ventureById: Map<string, Venture>): st
       trip.miles,
       rate.toFixed(3),
       deduction.toFixed(2),
+      trip.notes ?? '',
     ]);
   });
   return [header, ...rows].join('\n');
@@ -53,7 +56,7 @@ export function expensesToCsv(expenses: Expense[], ventureById: Map<string, Vent
     toRow([
       expense.date,
       ventureById.get(expense.venture_id)?.name ?? 'Unknown',
-      expense.category,
+      EXPENSE_CATEGORY_META[expense.category].label,
       expense.amount.toFixed(2),
       expense.notes ?? '',
       expense.receipt_photo_url ? 'Yes' : 'No',

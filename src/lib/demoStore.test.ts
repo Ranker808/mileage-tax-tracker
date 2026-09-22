@@ -38,6 +38,7 @@ describe('demoStore trips', () => {
       end_location: 'B',
       business_purpose: 'Test',
       miles: 10,
+      notes: null,
     });
     const all = demoStore.listTrips({});
     expect(all).toHaveLength(before + 1);

@@ -7,15 +7,8 @@ import { useVentures } from '../../src/hooks/useVentures';
 import { VentureChipRow } from '../../src/components/VentureChipRow';
 import { EmptyState } from '../../src/components/EmptyState';
 import { formatCurrency, formatDate } from '../../src/lib/format';
+import { EXPENSE_CATEGORY_META } from '../../src/lib/expenseCategories';
 import { colors, radius, shadow, shadowSm, spacing, type, ventureAccent } from '../../src/lib/theme';
-import type { ExpenseCategory } from '../../src/types/database';
-
-const CATEGORY_ICON: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
-  gas: 'flame-outline',
-  maintenance: 'construct-outline',
-  supplies: 'cube-outline',
-  other: 'ellipsis-horizontal-circle-outline',
-};
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -130,10 +123,10 @@ export default function ExpensesScreen() {
               </View>
               <View style={styles.cardBody}>
                 <View style={styles.categoryIconWrap}>
-                  <Ionicons name={CATEGORY_ICON[item.category]} size={18} color={colors.primary} />
+                  <Ionicons name={EXPENSE_CATEGORY_META[item.category].icon} size={18} color={colors.primary} />
                 </View>
                 <View style={styles.cardMain}>
-                  <Text style={styles.category}>{item.category[0].toUpperCase() + item.category.slice(1)}</Text>
+                  <Text style={styles.category}>{EXPENSE_CATEGORY_META[item.category].label}</Text>
                   {item.notes ? (
                     <Text style={styles.notes} numberOfLines={1}>
                       {item.notes}

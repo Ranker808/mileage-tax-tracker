@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useVentures } from '../hooks/useVentures';
+import { useRecentLocations } from '../hooks/useRecentLocations';
 import { VentureChipRow } from './VentureChipRow';
 import { calculateDeduction, getMileageRatePeriod } from '../lib/mileageRates';
 import { formatCurrency, todayIso } from '../lib/format';
@@ -15,6 +16,7 @@ export interface TripFormValues {
   end_location: string;
   business_purpose: string;
   miles: string;
+  notes: string;
 }
 
 interface Props {
@@ -27,12 +29,14 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function TripForm({ initial, submitLabel, onSubmit }: Props) {
   const { ventures } = useVentures();
+  const { locations: recentLocations } = useRecentLocations();
   const [date, setDate] = useState(initial?.date ?? todayIso());
   const [ventureId, setVentureId] = useState(initial?.venture_id ?? '');
   const [startLocation, setStartLocation] = useState(initial?.start_location ?? '');
   const [endLocation, setEndLocation] = useState(initial?.end_location ?? '');
   const [purpose, setPurpose] = useState(initial?.business_purpose ?? '');
   const [miles, setMiles] = useState(initial?.miles ?? '');
+  const [notes, setNotes] = useState(initial?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -80,6 +84,7 @@ export function TripForm({ initial, submitLabel, onSubmit }: Props) {
       end_location: endLocation.trim(),
       business_purpose: purpose.trim(),
       miles: Math.round(milesNum * 100) / 100,
+      notes: notes.trim() || null,
     });
     setSubmitting(false);
     if (submitError) setError(submitError);
@@ -114,6 +119,19 @@ export function TripForm({ initial, submitLabel, onSubmit }: Props) {
         onChangeText={setStartLocation}
         placeholder="Home office"
       />
+      {recentLocations.length > 0 ? (
+        <View style={styles.suggestionRow}>
+          {recentLocations
+            .filter((loc) => loc !== startLocation)
+            .map((loc) => (
+              <Pressable key={loc} style={styles.suggestionChip} onPress={() => setStartLocation(loc)}>
+                <Text style={styles.suggestionChipText} numberOfLines={1}>
+                  {loc}
+                </Text>
+              </Pressable>
+            ))}
+        </View>
+      ) : null}
 
       <Text style={styles.label}>Destination</Text>
       <TextInput
@@ -122,6 +140,19 @@ export function TripForm({ initial, submitLabel, onSubmit }: Props) {
         onChangeText={setEndLocation}
         placeholder="Client site"
       />
+      {recentLocations.length > 0 ? (
+        <View style={styles.suggestionRow}>
+          {recentLocations
+            .filter((loc) => loc !== endLocation)
+            .map((loc) => (
+              <Pressable key={loc} style={styles.suggestionChip} onPress={() => setEndLocation(loc)}>
+                <Text style={styles.suggestionChipText} numberOfLines={1}>
+                  {loc}
+                </Text>
+              </Pressable>
+            ))}
+        </View>
+      ) : null}
 
       <Text style={styles.label}>Business purpose</Text>
       <TextInput
@@ -138,6 +169,14 @@ export function TripForm({ initial, submitLabel, onSubmit }: Props) {
         onChangeText={setMiles}
         placeholder="0.0"
         keyboardType="decimal-pad"
+      />
+
+      <Text style={styles.label}>Notes (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Detour for construction, waited on client..."
       />
 
       <View style={styles.ratePreview}>
@@ -202,6 +241,26 @@ const styles = StyleSheet.create({
     ...type.body,
     fontSize: 13,
     color: colors.textMuted,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: spacing.sm,
+  },
+  suggestionChip: {
+    maxWidth: 160,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  suggestionChipText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
   ratePreview: {
     marginTop: spacing.lg,

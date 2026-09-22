@@ -65,6 +65,7 @@ export default function TripDetail() {
           end_location: trip.end_location,
           business_purpose: trip.business_purpose,
           miles: String(trip.miles),
+          notes: trip.notes ?? '',
         }}
         submitLabel="Save Changes"
         onSubmit={async (values) => {

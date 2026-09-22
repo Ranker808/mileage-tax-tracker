@@ -1,6 +1,23 @@
-export type ExpenseCategory = 'gas' | 'maintenance' | 'supplies' | 'other';
+export type ExpenseCategory =
+  | 'gas'
+  | 'maintenance'
+  | 'supplies'
+  | 'insurance'
+  | 'parking_tolls'
+  | 'registration_fees'
+  | 'interest'
+  | 'other';
 
-export const EXPENSE_CATEGORIES: ExpenseCategory[] = ['gas', 'maintenance', 'supplies', 'other'];
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'gas',
+  'maintenance',
+  'supplies',
+  'insurance',
+  'parking_tolls',
+  'registration_fees',
+  'interest',
+  'other',
+];
 
 export interface Venture {
   id: string;
@@ -19,6 +36,7 @@ export interface Trip {
   end_location: string;
   business_purpose: string;
   miles: number;
+  notes: string | null;
   created_at: string;
 }
 

@@ -17,6 +17,7 @@ function trip(overrides: Partial<Trip>): Trip {
     end_location: 'B',
     business_purpose: 'work',
     miles: 10,
+    notes: null,
     created_at: '2026-01-15',
     ...overrides,
   };

@@ -24,10 +24,10 @@ function initialVentures(): Venture[] {
 
 function initialTrips(): Trip[] {
   return [
-    { id: 't1', user_id: DEMO_USER_ID, venture_id: 'v1', date: '2026-09-15', start_location: 'Home', end_location: '412 Oak St', business_purpose: 'Delivery run', miles: 8.4, created_at: '2026-09-15T00:00:00Z' },
-    { id: 't2', user_id: DEMO_USER_ID, venture_id: 'v2', date: '2026-09-12', start_location: 'Home office', end_location: 'Client signing', business_purpose: 'Notarization appointment', miles: 14.1, created_at: '2026-09-12T00:00:00Z' },
-    { id: 't3', user_id: DEMO_USER_ID, venture_id: 'v3', date: '2026-08-30', start_location: 'Home office', end_location: 'Client site', business_purpose: 'Server maintenance', miles: 22.7, created_at: '2026-08-30T00:00:00Z' },
-    { id: 't4', user_id: DEMO_USER_ID, venture_id: 'v1', date: '2026-08-28', start_location: 'Home', end_location: '90 Elm Ave', business_purpose: 'Delivery run', miles: 5.9, created_at: '2026-08-28T00:00:00Z' },
+    { id: 't1', user_id: DEMO_USER_ID, venture_id: 'v1', date: '2026-09-15', start_location: 'Home', end_location: '412 Oak St', business_purpose: 'Delivery run', miles: 8.4, notes: null, created_at: '2026-09-15T00:00:00Z' },
+    { id: 't2', user_id: DEMO_USER_ID, venture_id: 'v2', date: '2026-09-12', start_location: 'Home office', end_location: 'Client signing', business_purpose: 'Notarization appointment', miles: 14.1, notes: 'Client rescheduled twice', created_at: '2026-09-12T00:00:00Z' },
+    { id: 't3', user_id: DEMO_USER_ID, venture_id: 'v3', date: '2026-08-30', start_location: 'Home office', end_location: 'Client site', business_purpose: 'Server maintenance', miles: 22.7, notes: null, created_at: '2026-08-30T00:00:00Z' },
+    { id: 't4', user_id: DEMO_USER_ID, venture_id: 'v1', date: '2026-08-28', start_location: 'Home', end_location: '90 Elm Ave', business_purpose: 'Delivery run', miles: 5.9, notes: null, created_at: '2026-08-28T00:00:00Z' },
   ];
 }
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Verifies supabase/migrations/0001_init.sql against a real local Postgres:
-# applies the migration unmodified, then runs it as two simulated users
-# (via a real, non-superuser role with a faithful auth.uid() shim) to prove
-# row-level security actually isolates their data, that check/FK
-# constraints hold, and that the odometer upsert behaves correctly.
+# Verifies every file in supabase/migrations/ against a real local
+# Postgres: applies them unmodified, in order, then runs it as two
+# simulated users (via a real, non-superuser role with a faithful
+# auth.uid() shim) to prove row-level security actually isolates their
+# data, that check/FK constraints hold, and that the odometer upsert
+# behaves correctly.
 #
 # Requires a local Postgres server you can connect to as a superuser
 # (e.g. `sudo -u postgres psql`, or just `psql` if you're already a
@@ -22,8 +23,11 @@ createdb "$DB"
 echo "==> Applying auth/storage shim (mimics Supabase's built-in schemas)"
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f 00_auth_storage_shim.sql >/dev/null
 
-echo "==> Applying the real, unmodified production migration"
-$PSQL -d "$DB" -v ON_ERROR_STOP=1 -f ../migrations/0001_init.sql >/dev/null
+echo "==> Applying the real, unmodified production migrations"
+for f in ../migrations/*.sql; do
+  echo "    - $(basename "$f")"
+  $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f "$f" >/dev/null
+done
 
 echo "==> Seeding two test users and a non-superuser 'authenticated' role"
 $PSQL -d "$DB" -v ON_ERROR_STOP=1 -f 01_seed_test_users.sql >/dev/null
@@ -44,9 +48,9 @@ if grep -q '^ERROR' /tmp/mileage_rls_test.log; then
   echo "FAILED: unexpected SQL errors were printed above."
   exit 1
 fi
-if [ "$pass_count" -lt 12 ]; then
+if [ "$pass_count" -lt 15 ]; then
   echo
-  echo "FAILED: expected at least 12 PASS assertions, got $pass_count."
+  echo "FAILED: expected at least 15 PASS assertions, got $pass_count."
   exit 1
 fi
 

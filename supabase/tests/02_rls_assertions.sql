@@ -186,4 +186,42 @@ begin
   end if;
 end $$;
 
+-- 11. The expanded expense categories (0003_expense_categories.sql) are all accepted
+do $$
+declare v_venture_id uuid;
+declare v_count int;
+begin
+  select id into v_venture_id from public.ventures where name = 'Alice DoorDash';
+  insert into public.expenses (venture_id, date, amount, category)
+    values
+      (v_venture_id, '2026-03-03', 50, 'insurance'),
+      (v_venture_id, '2026-03-03', 12, 'parking_tolls'),
+      (v_venture_id, '2026-03-03', 30, 'registration_fees'),
+      (v_venture_id, '2026-03-03', 8, 'interest');
+  select count(*) into v_count from public.expenses
+    where category in ('insurance', 'parking_tolls', 'registration_fees', 'interest');
+  if v_count <> 4 then
+    raise exception 'FAIL: expected all 4 new expense categories to be accepted, got %', v_count;
+  end if;
+  raise notice 'PASS: the expanded expense categories (insurance/parking_tolls/registration_fees/interest) are all accepted';
+end $$;
+
+-- 12. trips.notes (0002_trip_notes.sql) is optional and round-trips correctly
+do $$
+declare v_venture_id uuid;
+declare v_notes text;
+begin
+  select id into v_venture_id from public.ventures where name = 'Alice DoorDash';
+  insert into public.trips (venture_id, date, start_location, end_location, business_purpose, miles, notes)
+    values (v_venture_id, '2026-03-04', 'A', 'B', 'test', 3.5, 'hit traffic, took the long way');
+  select notes into v_notes from public.trips where date = '2026-03-04';
+  if v_notes <> 'hit traffic, took the long way' then
+    raise exception 'FAIL: trip notes did not round-trip correctly, got %', v_notes;
+  end if;
+  -- and it's genuinely optional -- omitting it entirely must not fail
+  insert into public.trips (venture_id, date, start_location, end_location, business_purpose, miles)
+    values (v_venture_id, '2026-03-05', 'A', 'B', 'test', 3.5);
+  raise notice 'PASS: trips.notes is optional and round-trips correctly when provided';
+end $$;
+
 reset role;
