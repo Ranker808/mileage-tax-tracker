@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -69,34 +70,54 @@ export default function PendingTripsScreen() {
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
         <Text style={styles.headerHint}>
-          Tap a detected drive to assign it to a venture — or discard it if it wasn't a business trip.
+          Tap a detected drive to assign it to a venture, or swipe it — right to classify, left to
+          discard.
         </Text>
       }
       renderItem={({ item }) => (
-        <Pressable style={styles.card} onPress={() => handleClassify(item)}>
-          <View style={styles.cardTop}>
-            <Text style={styles.date}>{formatDate(item.date)}</Text>
-            <Pressable onPress={() => handleDiscard(item)} hitSlop={8}>
-              <Ionicons name="close-circle" size={20} color={colors.textFaint} />
+        <Swipeable
+          overshootLeft={false}
+          overshootRight={false}
+          leftThreshold={60}
+          rightThreshold={60}
+          renderLeftActions={() => (
+            <Pressable style={styles.classifySwipeAction} onPress={() => handleClassify(item)}>
+              <Ionicons name="checkmark-circle-outline" size={22} color={colors.white} />
+              <Text style={styles.swipeActionText}>Classify</Text>
             </Pressable>
-          </View>
-          <View style={styles.routeRow}>
-            <Text style={styles.route} numberOfLines={1}>
-              {item.start_location}
-            </Text>
-            <Ionicons name="arrow-forward" size={14} color={colors.textFaint} style={{ marginHorizontal: 6 }} />
-            <Text style={styles.route} numberOfLines={1}>
-              {item.end_location}
-            </Text>
-          </View>
-          <View style={styles.cardBottom}>
-            <Text style={styles.miles}>{formatMiles(item.miles)}</Text>
-            <View style={styles.classifyButton}>
-              <Text style={styles.classifyButtonText}>Classify</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          )}
+          renderRightActions={() => (
+            <Pressable style={styles.discardSwipeAction} onPress={() => handleDiscard(item)}>
+              <Ionicons name="trash-outline" size={22} color={colors.white} />
+              <Text style={styles.swipeActionText}>Discard</Text>
+            </Pressable>
+          )}
+        >
+          <Pressable style={styles.card} onPress={() => handleClassify(item)}>
+            <View style={styles.cardTop}>
+              <Text style={styles.date}>{formatDate(item.date)}</Text>
+              <Pressable onPress={() => handleDiscard(item)} hitSlop={8}>
+                <Ionicons name="close-circle" size={20} color={colors.textFaint} />
+              </Pressable>
             </View>
-          </View>
-        </Pressable>
+            <View style={styles.routeRow}>
+              <Text style={styles.route} numberOfLines={1}>
+                {item.start_location}
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color={colors.textFaint} style={{ marginHorizontal: 6 }} />
+              <Text style={styles.route} numberOfLines={1}>
+                {item.end_location}
+              </Text>
+            </View>
+            <View style={styles.cardBottom}>
+              <Text style={styles.miles}>{formatMiles(item.miles)}</Text>
+              <View style={styles.classifyButton}>
+                <Text style={styles.classifyButtonText}>Classify</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+              </View>
+            </View>
+          </Pressable>
+        </Swipeable>
       )}
     />
   );
@@ -122,6 +143,29 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.md,
     ...shadowSm,
+  },
+  classifySwipeAction: {
+    width: 96,
+    marginBottom: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  discardSwipeAction: {
+    width: 96,
+    marginBottom: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  swipeActionText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 12.5,
   },
   cardTop: {
     flexDirection: 'row',
