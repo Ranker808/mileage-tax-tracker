@@ -3,14 +3,22 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../src/hooks/useAuth';
+import { colors } from '../src/lib/theme';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerTitleStyle: { fontWeight: '600' } }}>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerTitleStyle: { fontWeight: '800', color: colors.ink },
+              headerStyle: { backgroundColor: colors.background },
+              headerShadowVisible: false,
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="sign-in" options={{ headerShown: false }} />
             <Stack.Screen name="trip/new" options={{ title: 'Log Trip', presentation: 'modal' }} />

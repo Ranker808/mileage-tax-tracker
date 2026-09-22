@@ -1,9 +1,10 @@
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/hooks/useAuth';
 import { odometerReminder, useOdometerReadings } from '../../src/hooks/useOdometerReadings';
 import { formatDate } from '../../src/lib/format';
-import { colors } from '../../src/lib/theme';
+import { colors, radius, shadowSm, spacing, type } from '../../src/lib/theme';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function SettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {demoMode ? (
         <View style={styles.demoBanner}>
+          <Ionicons name="flask-outline" size={18} color={colors.warning} />
           <Text style={styles.demoBannerText}>
             You're in Demo Mode. Sample data only — nothing here is saved, and it resets if you
             reload. Sign out to connect a real account.
@@ -31,17 +33,21 @@ export default function SettingsScreen() {
 
       {reminder ? (
         <View style={styles.reminderBanner}>
+          <View style={styles.reminderIconWrap}>
+            <Ionicons name="speedometer-outline" size={18} color={colors.primary} />
+          </View>
           <Text style={styles.reminderText}>{reminder}</Text>
           <Pressable style={styles.reminderButton} onPress={() => router.push('/odometer/new')}>
-            <Text style={styles.reminderButtonText}>Log Now</Text>
+            <Text style={styles.reminderButtonText}>Log now</Text>
           </Pressable>
         </View>
       ) : null}
 
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionLabel}>Odometer Readings</Text>
-        <Pressable onPress={() => router.push('/odometer/new')}>
-          <Text style={styles.addLink}>+ Add</Text>
+        <Text style={styles.sectionLabel}>Odometer readings</Text>
+        <Pressable style={styles.addLink} onPress={() => router.push('/odometer/new')} hitSlop={8}>
+          <Ionicons name="add-circle" size={16} color={colors.primary} />
+          <Text style={styles.addLinkText}>Add</Text>
         </Pressable>
       </View>
 
@@ -51,24 +57,37 @@ export default function SettingsScreen() {
           total annual mileage.
         </Text>
       ) : (
-        readings.map((r) => (
-          <Pressable key={r.id} style={styles.readingRow} onLongPress={() => handleDelete(r.id)}>
-            <Text style={styles.readingDate}>{formatDate(r.date)}</Text>
-            <Text style={styles.readingValue}>{r.reading.toLocaleString()} mi</Text>
-          </Pressable>
-        ))
+        <View style={styles.card}>
+          {readings.map((r, i) => (
+            <Pressable
+              key={r.id}
+              style={[styles.readingRow, i > 0 && styles.readingRowBorder]}
+              onLongPress={() => handleDelete(r.id)}
+            >
+              <Text style={styles.readingDate}>{formatDate(r.date)}</Text>
+              <Text style={styles.readingValue}>{r.reading.toLocaleString()} mi</Text>
+            </Pressable>
+          ))}
+        </View>
       )}
       {readings.length > 0 ? <Text style={styles.hint}>Long-press a reading to delete it.</Text> : null}
 
       <Text style={styles.sectionLabel}>Notifications</Text>
-      <Text style={styles.hint}>
-        Off by default. This app only nudges you in-app near Jan 1 / Dec 31 — no push notifications,
-        ever, unless you turn them on yourself.
-      </Text>
+      <View style={styles.infoCard}>
+        <Ionicons name="notifications-off-outline" size={18} color={colors.textMuted} />
+        <Text style={styles.infoCardText}>
+          Off by default. This app only nudges you in-app near Jan 1 / Dec 31 — no push
+          notifications, ever, unless you turn them on yourself.
+        </Text>
+      </View>
 
       <Text style={styles.sectionLabel}>Account</Text>
-      <Text style={styles.hint}>{demoMode ? 'Demo Mode (no account)' : session?.user.email}</Text>
+      <View style={styles.infoCard}>
+        <Ionicons name="person-circle-outline" size={20} color={colors.textMuted} />
+        <Text style={styles.infoCardText}>{demoMode ? 'Demo Mode (no account)' : session?.user.email}</Text>
+      </View>
       <Pressable style={styles.signOutButton} onPress={() => signOut()}>
+        <Ionicons name="log-out-outline" size={17} color={colors.danger} />
         <Text style={styles.signOutText}>{demoMode ? 'Exit Demo Mode' : 'Sign Out'}</Text>
       </Pressable>
     </ScrollView>
@@ -81,95 +100,140 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 48,
   },
   demoBanner: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.warningMuted,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   demoBannerText: {
-    color: '#92400e',
+    flex: 1,
+    color: '#92400E',
     fontSize: 13,
     lineHeight: 18,
   },
   reminderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     backgroundColor: colors.primaryMuted,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  reminderIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   reminderText: {
-    color: colors.primary,
-    fontSize: 14,
-    marginBottom: 10,
+    flex: 1,
+    color: colors.primaryDark,
+    fontSize: 13.5,
+    lineHeight: 18,
   },
   reminderButton: {
     backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
+    borderRadius: radius.sm,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
   },
   reminderButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 13,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 20,
-    textTransform: 'uppercase',
+    ...type.eyebrow,
+    marginTop: spacing.xl,
   },
   addLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xl,
+  },
+  addLinkText: {
     color: colors.primary,
-    fontWeight: '600',
-    marginTop: 20,
+    fontWeight: '700',
+    fontSize: 13.5,
   },
   hint: {
+    ...type.body,
     fontSize: 13,
     color: colors.textMuted,
-    marginTop: 8,
+    marginTop: spacing.sm,
     lineHeight: 18,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
+    ...shadowSm,
   },
   readingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
-    marginTop: 8,
+    padding: spacing.md,
+  },
+  readingRowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   readingDate: {
     fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
+    color: colors.ink,
+    fontWeight: '600',
   },
   readingValue: {
     fontSize: 14,
     color: colors.textMuted,
+    fontWeight: '600',
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+    ...shadowSm,
+  },
+  infoCardText: {
+    flex: 1,
+    ...type.body,
+    fontSize: 13.5,
+    color: colors.textMuted,
+    lineHeight: 18,
   },
   signOutButton: {
-    marginTop: 12,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingVertical: 14,
+    backgroundColor: colors.dangerMuted,
+    borderRadius: radius.md,
   },
   signOutText: {
     color: colors.danger,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

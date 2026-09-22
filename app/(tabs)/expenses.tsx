@@ -1,12 +1,21 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useVentures } from '../../src/hooks/useVentures';
 import { VentureChipRow } from '../../src/components/VentureChipRow';
 import { EmptyState } from '../../src/components/EmptyState';
 import { formatCurrency, formatDate } from '../../src/lib/format';
-import { colors } from '../../src/lib/theme';
+import { colors, radius, shadow, shadowSm, spacing, type, ventureAccent } from '../../src/lib/theme';
+import type { ExpenseCategory } from '../../src/types/database';
+
+const CATEGORY_ICON: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
+  gas: 'flame-outline',
+  maintenance: 'construct-outline',
+  supplies: 'cube-outline',
+  other: 'ellipsis-horizontal-circle-outline',
+};
 
 export default function ExpensesScreen() {
   const router = useRouter();
@@ -32,39 +41,56 @@ export default function ExpensesScreen() {
         data={expenses}
         keyExtractor={(item) => item.id}
         contentContainerStyle={expenses.length === 0 ? styles.emptyContainer : styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
         ListEmptyComponent={
-          <EmptyState title="No expenses yet" message="Log gas, maintenance, or supply costs against a venture." />
+          <EmptyState
+            icon="receipt-outline"
+            title="No expenses yet"
+            message="Log gas, maintenance, or supply costs against a venture."
+          />
         }
         renderItem={({ item }) => {
           const venture = ventureById.get(item.venture_id);
+          const accent = ventureAccent(venture?.name ?? '');
           return (
             <Pressable style={styles.card} onPress={() => router.push(`/expense/${item.id}`)}>
               <View style={styles.cardHeader}>
                 <Text style={styles.date}>{formatDate(item.date)}</Text>
-                <View style={styles.ventureBadge}>
-                  <Text style={styles.ventureBadgeText}>{venture?.name ?? 'Unknown'}</Text>
+                <View style={[styles.ventureBadge, { backgroundColor: accent.bg }]}>
+                  <Text style={[styles.ventureBadgeText, { color: accent.fg }]}>
+                    {venture?.name ?? 'Unknown'}
+                  </Text>
                 </View>
               </View>
-              <View style={styles.cardFooter}>
-                <View style={styles.categoryRow}>
+              <View style={styles.cardBody}>
+                <View style={styles.categoryIconWrap}>
+                  <Ionicons name={CATEGORY_ICON[item.category]} size={18} color={colors.primary} />
+                </View>
+                <View style={styles.cardMain}>
                   <Text style={styles.category}>{item.category[0].toUpperCase() + item.category.slice(1)}</Text>
-                  {item.receipt_photo_url ? <Text style={styles.receiptTag}>📎 receipt</Text> : null}
+                  {item.notes ? (
+                    <Text style={styles.notes} numberOfLines={1}>
+                      {item.notes}
+                    </Text>
+                  ) : null}
                 </View>
-                <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
+                <View style={styles.amountCol}>
+                  <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
+                  {item.receipt_photo_url ? (
+                    <View style={styles.receiptTag}>
+                      <Ionicons name="attach" size={11} color={colors.textMuted} />
+                      <Text style={styles.receiptTagText}>receipt</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
-              {item.notes ? (
-                <Text style={styles.notes} numberOfLines={1}>
-                  {item.notes}
-                </Text>
-              ) : null}
             </Pressable>
           );
         }}
       />
 
       <Pressable style={styles.fab} onPress={() => router.push('/expense/new')}>
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
     </View>
   );
@@ -76,95 +102,95 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   filterBar: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: 4,
   },
   listContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
   emptyContainer: {
     flexGrow: 1,
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadowSm,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.md,
   },
   date: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
+    ...type.caption,
   },
   ventureBadge: {
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 12,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   ventureBadgeText: {
     fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryRow: {
+  cardBody: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.md,
+  },
+  categoryIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardMain: {
+    flex: 1,
+    minWidth: 0,
   },
   category: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  receiptTag: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  amount: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+    ...type.headline,
+    fontSize: 15.5,
   },
   notes: {
     fontSize: 13,
     color: colors.textMuted,
-    marginTop: 6,
+    marginTop: 2,
+  },
+  amountCol: {
+    alignItems: 'flex-end',
+  },
+  amount: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  receiptTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 3,
+  },
+  receiptTagText: {
+    fontSize: 11,
+    color: colors.textMuted,
   },
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    right: spacing.xl,
+    bottom: spacing.xl,
+    width: 58,
+    height: 58,
+    borderRadius: radius.xl,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 30,
-    lineHeight: 32,
-    fontWeight: '400',
+    ...shadow,
   },
 });

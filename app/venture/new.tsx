@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useVentures } from '../../src/hooks/useVentures';
-import { colors } from '../../src/lib/theme';
+import { colors, radius, spacing, type } from '../../src/lib/theme';
 
 export default function NewVenture() {
   const router = useRouter();
@@ -34,9 +35,15 @@ export default function NewVenture() {
         value={name}
         onChangeText={setName}
         placeholder="e.g. DoorDash, Notary, IT Support"
+        placeholderTextColor={colors.textFaint}
         autoFocus
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle" size={16} color={colors.danger} />
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      ) : null}
       <Pressable style={[styles.button, submitting && styles.buttonDisabled]} onPress={handleSubmit} disabled={submitting}>
         <Text style={styles.buttonText}>{submitting ? 'Saving…' : 'Add Venture'}</Text>
       </Pressable>
@@ -47,42 +54,49 @@ export default function NewVenture() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: spacing.xl,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: 6,
-    textTransform: 'uppercase',
+    ...type.eyebrow,
+    marginBottom: spacing.sm,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
     fontSize: 16,
+    color: colors.ink,
     backgroundColor: colors.card,
   },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.dangerMuted,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginTop: spacing.md,
+  },
   error: {
+    flex: 1,
     color: colors.danger,
-    marginTop: 12,
-    textAlign: 'center',
+    fontSize: 13.5,
   },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 14,
+    backgroundColor: colors.ink,
+    borderRadius: radius.md,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

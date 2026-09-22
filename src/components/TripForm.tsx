@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useVentures } from '../hooks/useVentures';
 import { VentureChipRow } from './VentureChipRow';
 import { calculateDeduction, getMileageRatePeriod } from '../lib/mileageRates';
 import { formatCurrency, todayIso } from '../lib/format';
-import { colors } from '../lib/theme';
+import { colors, radius, spacing, type } from '../lib/theme';
 import type { TripInput } from '../hooks/useTrips';
 
 export interface TripFormValues {
@@ -142,9 +143,12 @@ export function TripForm({ initial, submitLabel, onSubmit }: Props) {
       <View style={styles.ratePreview}>
         {ratePeriod ? (
           <>
-            <Text style={styles.ratePreviewLabel}>
-              Rate: {ratePeriod.label} · {(ratePeriod.ratePerMile * 100).toFixed(1)}¢/mi
-            </Text>
+            <View style={styles.ratePreviewLeft}>
+              <Ionicons name="trending-up-outline" size={16} color={colors.primary} />
+              <Text style={styles.ratePreviewLabel}>
+                {ratePeriod.label} · {(ratePeriod.ratePerMile * 100).toFixed(1)}¢/mi
+              </Text>
+            </View>
             {deductionPreview !== null ? (
               <Text style={styles.deductionPreview}>{formatCurrency(deductionPreview)}</Text>
             ) : null}
@@ -156,7 +160,12 @@ export function TripForm({ initial, submitLabel, onSubmit }: Props) {
         )}
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle" size={16} color={colors.danger} />
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      ) : null}
 
       <Pressable
         style={[styles.button, submitting && styles.buttonDisabled]}
@@ -171,67 +180,80 @@ export function TripForm({ initial, submitLabel, onSubmit }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: spacing.xl,
     paddingBottom: 48,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 16,
-    marginBottom: 6,
-    textTransform: 'uppercase',
+    ...type.eyebrow,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
     fontSize: 16,
+    color: colors.ink,
     backgroundColor: colors.card,
   },
   hint: {
+    ...type.body,
     fontSize: 13,
     color: colors.textMuted,
   },
   ratePreview: {
-    marginTop: 16,
-    padding: 12,
+    marginTop: spacing.lg,
+    padding: spacing.md,
     backgroundColor: colors.primaryMuted,
-    borderRadius: 8,
+    borderRadius: radius.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  ratePreviewLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   ratePreviewLabel: {
     fontSize: 13,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  deductionPreview: {
-    fontSize: 16,
-    color: colors.primary,
+    color: colors.primaryDark,
     fontWeight: '700',
   },
+  deductionPreview: {
+    fontSize: 17,
+    color: colors.primaryDark,
+    fontWeight: '800',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.dangerMuted,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginTop: spacing.lg,
+  },
   error: {
+    flex: 1,
     color: colors.danger,
-    marginTop: 16,
-    textAlign: 'center',
+    fontSize: 13.5,
   },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 14,
+    backgroundColor: colors.ink,
+    borderRadius: radius.md,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: spacing.xl,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

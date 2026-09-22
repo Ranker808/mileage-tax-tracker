@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ExpenseForm } from '../../src/components/ExpenseForm';
 import { fetchExpense, useExpenses } from '../../src/hooks/useExpenses';
-import { colors } from '../../src/lib/theme';
+import { colors, spacing } from '../../src/lib/theme';
 import type { Expense } from '../../src/types/database';
 
 export default function ExpenseDetail() {
@@ -20,7 +21,7 @@ export default function ExpenseDetail() {
   if (expense === undefined) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -66,6 +67,7 @@ export default function ExpenseDetail() {
         }}
       />
       <Pressable style={styles.deleteButton} onPress={handleDelete}>
+        <Ionicons name="trash-outline" size={16} color={colors.danger} />
         <Text style={styles.deleteText}>Delete Expense</Text>
       </Pressable>
     </View>
@@ -79,13 +81,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteButton: {
-    marginHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.xl,
     marginBottom: 32,
     paddingVertical: 14,
-    alignItems: 'center',
   },
   deleteText: {
     color: colors.danger,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

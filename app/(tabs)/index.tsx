@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTrips } from '../../src/hooks/useTrips';
 import { useVentures } from '../../src/hooks/useVentures';
 import { VentureChipRow } from '../../src/components/VentureChipRow';
@@ -8,7 +9,7 @@ import { VenturePickerModal } from '../../src/components/VenturePickerModal';
 import { EmptyState } from '../../src/components/EmptyState';
 import { formatCurrency, formatDate, formatMiles } from '../../src/lib/format';
 import { calculateDeduction } from '../../src/lib/mileageRates';
-import { colors } from '../../src/lib/theme';
+import { colors, radius, shadow, shadowSm, spacing, type, ventureAccent } from '../../src/lib/theme';
 import type { Trip } from '../../src/types/database';
 
 export default function TripsScreen() {
@@ -39,38 +40,53 @@ export default function TripsScreen() {
         data={trips}
         keyExtractor={(item) => item.id}
         contentContainerStyle={trips.length === 0 ? styles.emptyContainer : styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
         ListEmptyComponent={
           <EmptyState
+            icon="car-outline"
             title="No trips yet"
             message="Log your first business trip to start tracking your mileage deduction."
           />
         }
         renderItem={({ item }) => {
           const venture = ventureById.get(item.venture_id);
+          const accent = ventureAccent(venture?.name ?? '');
           const deduction = calculateDeduction(item.miles, item.date);
           return (
             <Pressable style={styles.card} onPress={() => router.push(`/trip/${item.id}`)}>
               <View style={styles.cardHeader}>
                 <Text style={styles.date}>{formatDate(item.date)}</Text>
                 <Pressable
-                  style={styles.ventureBadge}
+                  style={[styles.ventureBadge, { backgroundColor: accent.bg }]}
                   onPress={(e) => {
                     e.stopPropagation();
                     setReassignTarget(item);
                   }}
+                  hitSlop={6}
                 >
-                  <Text style={styles.ventureBadgeText}>{venture?.name ?? 'Unknown'} ›</Text>
+                  <Text style={[styles.ventureBadgeText, { color: accent.fg }]}>
+                    {venture?.name ?? 'Unknown'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={12} color={accent.fg} />
                 </Pressable>
               </View>
-              <Text style={styles.route} numberOfLines={1}>
-                {item.start_location} → {item.end_location}
-              </Text>
+              <View style={styles.routeRow}>
+                <Text style={styles.route} numberOfLines={1}>
+                  {item.start_location}
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color={colors.textFaint} style={styles.routeArrow} />
+                <Text style={styles.route} numberOfLines={1}>
+                  {item.end_location}
+                </Text>
+              </View>
               <Text style={styles.purpose} numberOfLines={1}>
                 {item.business_purpose}
               </Text>
               <View style={styles.cardFooter}>
-                <Text style={styles.miles}>{formatMiles(item.miles)}</Text>
+                <View style={styles.milesRow}>
+                  <Ionicons name="speedometer-outline" size={13} color={colors.textMuted} />
+                  <Text style={styles.miles}>{formatMiles(item.miles)}</Text>
+                </View>
                 <Text style={styles.deduction}>{formatCurrency(deduction)}</Text>
               </View>
             </Pressable>
@@ -79,7 +95,7 @@ export default function TripsScreen() {
       />
 
       <Pressable style={styles.fab} onPress={() => router.push('/trip/new')}>
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
 
       {reassignTarget ? (
@@ -101,93 +117,97 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   filterBar: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: 4,
     backgroundColor: colors.background,
   },
   listContent: {
-    padding: 16,
-    gap: 12,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   emptyContainer: {
     flexGrow: 1,
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadowSm,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.sm,
   },
   date: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
+    ...type.caption,
   },
   ventureBadge: {
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   ventureBadgeText: {
     fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  routeArrow: {
+    marginHorizontal: 6,
   },
   route: {
+    ...type.headline,
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
+    flexShrink: 1,
   },
   purpose: {
-    fontSize: 14,
+    ...type.body,
     color: colors.textMuted,
-    marginBottom: 8,
+    marginBottom: spacing.md,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  milesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   miles: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
+    fontSize: 13.5,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
   deduction: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.success,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    right: spacing.xl,
+    bottom: spacing.xl,
+    width: 58,
+    height: 58,
+    borderRadius: radius.xl,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 30,
-    lineHeight: 32,
-    fontWeight: '400',
+    ...shadow,
   },
 });

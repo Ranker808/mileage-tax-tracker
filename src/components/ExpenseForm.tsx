@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useVentures } from '../hooks/useVentures';
 import { VentureChipRow } from './VentureChipRow';
 import { useAuth } from '../hooks/useAuth';
 import { uploadReceiptPhoto, getReceiptSignedUrl, deleteReceiptPhoto } from '../lib/receipts';
 import { todayIso } from '../lib/format';
-import { colors } from '../lib/theme';
+import { colors, radius, spacing, type } from '../lib/theme';
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../types/database';
 import type { ExpenseInput } from '../hooks/useExpenses';
 
@@ -26,6 +27,13 @@ interface Props {
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const CATEGORY_ICON: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
+  gas: 'flame-outline',
+  maintenance: 'construct-outline',
+  supplies: 'cube-outline',
+  other: 'ellipsis-horizontal-circle-outline',
+};
 
 export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
   const { session } = useAuth();
@@ -143,6 +151,11 @@ export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
             style={[styles.categoryChip, category === c && styles.categoryChipSelected]}
             onPress={() => setCategory(c)}
           >
+            <Ionicons
+              name={CATEGORY_ICON[c]}
+              size={15}
+              color={category === c ? colors.white : colors.textMuted}
+            />
             <Text style={[styles.categoryChipText, category === c && styles.categoryChipTextSelected]}>
               {c[0].toUpperCase() + c.slice(1)}
             </Text>
@@ -160,17 +173,28 @@ export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
       {receiptPreviewUrl ? (
         <Image source={{ uri: receiptPreviewUrl }} style={styles.preview} resizeMode="cover" />
       ) : receiptPath ? (
-        <Text style={styles.hint}>Receipt attached.</Text>
+        <View style={styles.attachedRow}>
+          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+          <Text style={styles.hint}>Receipt attached.</Text>
+        </View>
       ) : null}
       <Pressable style={styles.attachButton} onPress={handleAttachPhoto} disabled={uploadingPhoto}>
         {uploadingPhoto ? (
-          <ActivityIndicator />
+          <ActivityIndicator color={colors.primary} />
         ) : (
-          <Text style={styles.attachButtonText}>{receiptPath ? 'Replace Photo' : 'Attach Photo'}</Text>
+          <>
+            <Ionicons name="camera-outline" size={17} color={colors.primary} />
+            <Text style={styles.attachButtonText}>{receiptPath ? 'Replace Photo' : 'Attach Photo'}</Text>
+          </>
         )}
       </Pressable>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle" size={16} color={colors.danger} />
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      ) : null}
 
       <Pressable style={[styles.button, submitting && styles.buttonDisabled]} onPress={handleSubmit} disabled={submitting}>
         <Text style={styles.buttonText}>{submitting ? 'Saving…' : submitLabel}</Text>
@@ -181,91 +205,112 @@ export function ExpenseForm({ initial, submitLabel, onSubmit }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: spacing.xl,
     paddingBottom: 48,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 16,
-    marginBottom: 6,
-    textTransform: 'uppercase',
+    ...type.eyebrow,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
     fontSize: 16,
+    color: colors.ink,
     backgroundColor: colors.card,
   },
   hint: {
+    ...type.body,
     fontSize: 13,
     color: colors.textMuted,
   },
   categoryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
     backgroundColor: colors.card,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
   categoryChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
   },
   categoryChipText: {
     color: colors.text,
-    fontWeight: '500',
+    fontWeight: '600',
+    fontSize: 13.5,
   },
   categoryChipTextSelected: {
-    color: '#fff',
+    color: colors.white,
   },
   preview: {
     width: '100%',
     height: 180,
-    borderRadius: 8,
-    marginBottom: 10,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
     backgroundColor: colors.border,
   },
-  attachButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: 12,
+  attachedRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  attachButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    backgroundColor: colors.primaryTint,
   },
   attachButtonText: {
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.dangerMuted,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginTop: spacing.lg,
   },
   error: {
+    flex: 1,
     color: colors.danger,
-    marginTop: 16,
-    textAlign: 'center',
+    fontSize: 13.5,
   },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 14,
+    backgroundColor: colors.ink,
+    borderRadius: radius.md,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: spacing.xl,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

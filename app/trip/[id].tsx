@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { TripForm } from '../../src/components/TripForm';
 import { VenturePickerModal } from '../../src/components/VenturePickerModal';
 import { fetchTrip, useTrips } from '../../src/hooks/useTrips';
 import { useVentures } from '../../src/hooks/useVentures';
-import { colors } from '../../src/lib/theme';
+import { colors, radius, spacing } from '../../src/lib/theme';
 import type { Trip } from '../../src/types/database';
 
 export default function TripDetail() {
@@ -24,7 +25,7 @@ export default function TripDetail() {
   if (trip === undefined) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -57,9 +58,8 @@ export default function TripDetail() {
     <View style={{ flex: 1 }}>
       <View style={styles.quickBar}>
         <Pressable style={styles.reassignButton} onPress={() => setPickerVisible(true)}>
-          <Text style={styles.reassignText}>
-            Venture: {currentVenture?.name ?? 'Unknown'} · tap to move
-          </Text>
+          <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+          <Text style={styles.reassignText}>{currentVenture?.name ?? 'Unknown'} · tap to move</Text>
         </Pressable>
       </View>
 
@@ -81,6 +81,7 @@ export default function TripDetail() {
       />
 
       <Pressable style={styles.deleteButton} onPress={handleDelete}>
+        <Ionicons name="trash-outline" size={16} color={colors.danger} />
         <Text style={styles.deleteText}>Delete Trip</Text>
       </Pressable>
 
@@ -105,28 +106,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickBar: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
   },
   reassignButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
     backgroundColor: colors.primaryMuted,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.md,
   },
   reassignText: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.primaryDark,
+    fontWeight: '700',
     fontSize: 13,
   },
   deleteButton: {
-    marginHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.xl,
     marginBottom: 32,
     paddingVertical: 14,
-    alignItems: 'center',
   },
   deleteText: {
     color: colors.danger,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
