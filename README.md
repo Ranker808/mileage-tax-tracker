@@ -29,8 +29,23 @@ multiple side ventures, for IRS-compliant deductions. Built with Expo
 8. Odometer reading reminders — an in-app banner near Jan 1 / Dec 31 on the
    Settings screen (no push notifications; see "Notifications" below)
 9. GPS trip tracking, three ways — manual Start/Stop, fully automatic
-   background detection, and a review queue for classifying detected
-   drives — see "GPS Trip Tracking" below
+   background detection, and a review queue (with swipe-to-classify/
+   swipe-to-discard) for classifying detected drives — see "GPS Trip
+   Tracking" below
+10. Search and date-range filtering on Trips and Expenses, plus a custom
+    date range in Reports (on top of the venture filter and the
+    This year/Last year/All time presets)
+11. Bulk actions on Trips — multi-select to reassign or delete several
+    trips at once
+12. Trip notes, recent-address quick-fill suggestions (derived from your
+    own trip history, no extra setup), and a wider set of expense
+    categories (insurance, parking & tolls, registration & fees, interest
+    — not just gas/maintenance/supplies/other)
+13. Reports charts — a monthly mileage-deduction trend and an
+    expense-by-category breakdown, plus a PDF export that now includes
+    full trip- and expense-level line items, not just the summary
+14. Password reset from the sign-in screen, and a "Reset demo data" action
+    in Settings
 
 Plus a **Demo Mode** ("Try Demo" on the sign-in screen) for trying the app
 with zero setup — see below.
@@ -68,7 +83,11 @@ Since this is a single-user app, create the one account you'll sign in with
 via the Supabase dashboard (Authentication → Users → Add user), or by
 enabling email sign-ups and using the app's sign-in screen once you've
 temporarily wired up a sign-up call. There's no in-app sign-up flow by
-design (see `mileage-tracker-future-sell-plan.md` for why).
+design — this is a personal tool for one person, not a multi-tenant
+product, so an onboarding/sign-up flow would be pure overhead. There is a
+forgot-password flow ("Forgot password?" on the sign-in screen), since
+losing access to the one account with no recovery path would be a real
+problem.
 
 ### 3. Configure environment variables
 
@@ -99,15 +118,16 @@ npm run typecheck   # tsc --noEmit
 npm test            # vitest run — pure-logic unit tests
 ```
 
-`npm test` covers the mileage rate engine, report rollup math, CSV
-escaping/formatting, filename sanitization, and the odometer reminder
-window — the parts of the app that are pure functions and don't need a
-backend.
+`npm test` covers the mileage rate engine, report rollup math (including
+the monthly-trend and expense-category-breakdown grouping used by the
+Reports charts), CSV/PDF export content and HTML-escaping, filename
+sanitization, recent-location ranking, and the odometer reminder window —
+the parts of the app that are pure functions and don't need a backend.
 
 The parts that *do* need a backend (RLS policies, constraints, the
 odometer upsert) are covered separately in `supabase/tests/`, which spins
-up a throwaway local Postgres database, applies the real
-`supabase/migrations/0001_init.sql` unmodified, and runs it as two
+up a throwaway local Postgres database, applies every file in
+`supabase/migrations/` unmodified and in order, and runs it as two
 simulated users through a non-superuser role (RLS is a no-op for
 superusers, so this matters) to assert real isolation:
 
@@ -122,9 +142,11 @@ user can't insert a row claiming someone else's `user_id`; a user can't
 update another user's row even by guessing its id; the private receipts
 storage bucket is isolated the same way; the odometer `(user_id, date)`
 upsert updates in place instead of duplicating; deleting a venture with
-logged trips is blocked; and the `miles > 0` / valid-category check
-constraints reject bad data. Needs a local Postgres reachable as a
-superuser (`createdb`/`dropdb`/`psql` on your PATH) — nothing else.
+logged trips is blocked; the `miles > 0` / valid-category check
+constraints reject bad data; the expanded expense category set (see
+"What's New" below) is fully accepted; and `trips.notes` is optional and
+round-trips correctly. Needs a local Postgres reachable as a superuser
+(`createdb`/`dropdb`/`psql` on your PATH) — nothing else.
 
 ## Project Structure
 
@@ -217,6 +239,27 @@ Off by default, and there is no push notification permission request
 anywhere in the app. The odometer reminder is a plain in-app banner on the
 Settings screen — that's it.
 
+## Web Platform Notes
+
+`npm run web` is what this project's own Demo Mode click-through testing
+runs against, and it surfaced a few platform gaps worth knowing about if
+you extend the app — none of these affect Expo Go or a native build:
+
+- **`Alert.alert` is a no-op on web.** `react-native-web`'s implementation
+  is literally `static alert() {}` — every confirm/delete dialog silently
+  did nothing when clicked in a browser. Fixed with `src/lib/confirm.ts`
+  (`confirmAsync`/`notifyAsync`), which uses `window.confirm`/`window.alert`
+  on web and the real `Alert.alert` everywhere else. Use it instead of
+  `Alert.alert` for any new confirm-style dialog.
+- **`expo-print`'s web implementation returns no file.** `printToFileAsync`
+  on web just calls `window.print()` (so "Save as PDF" happens through the
+  browser's own print dialog) and resolves with no `uri` to share.
+  `src/lib/exportFiles.ts` guards for that instead of crashing.
+- **`expo-file-system`'s File/Paths API isn't functional on web** in this
+  SDK build. CSV export goes through a `Platform.OS === 'web'` branch that
+  downloads via a `Blob` + a temporary anchor click instead, bypassing
+  `expo-file-system`/`expo-sharing` entirely on that platform.
+
 ## Notes on Dependencies
 
 `@supabase/supabase-js` is pinned to `2.45.4` (not a caret range) because
@@ -228,6 +271,22 @@ error. If you upgrade this dependency, re-run `npx tsc --noEmit` first.
 ## What's Explicitly Not in V1
 
 Multi-user auth, payments/licensing, OCR receipt scanning, and an
-onboarding flow are all deferred — see `mileage-tracker-future-sell-plan.md`.
-(Automatic background GPS tracking *is* in V1 now — see "GPS Trip
-Tracking" above — but it needs a dev-client build, not Expo Go.)
+onboarding flow are all deferred — this is a personal, single-user tool,
+not a product being sold to multiple customers. (Automatic background GPS
+tracking *is* in V1 now — see "GPS Trip Tracking" above — but it needs a
+dev-client build, not Expo Go.)
+
+Two more were deliberately left out of this pass, each for a specific
+reason rather than being forgotten:
+
+- **Dark mode.** Every screen's `StyleSheet.create` closes over the static
+  `colors` import from `src/lib/theme.ts` at module-load time. Real support
+  means threading a theme context through every screen and converting each
+  stylesheet to be computed at render time — an architecture-level rewrite,
+  not a polish item, so it's a genuine follow-up rather than something to
+  half-do.
+- **Multi-vehicle / actual-expense-method accounting.** The mileage rate
+  engine only supports the IRS standard mileage rate. Supporting the
+  actual-expense method (or splitting mileage across multiple vehicles)
+  needs a `vehicles` table, cost basis, and a depreciation model — a
+  distinct feature set on top of what's here, not an extension of it.
