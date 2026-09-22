@@ -34,6 +34,8 @@ export default function RootLayout() {
             <Stack.Screen name="venture/[id]" options={{ title: 'Venture' }} />
             <Stack.Screen name="expense/new" options={{ title: 'Log Expense', presentation: 'modal' }} />
             <Stack.Screen name="expense/[id]" options={{ title: 'Expense' }} />
+            <Stack.Screen name="income/new" options={{ title: 'Log Income', presentation: 'modal' }} />
+            <Stack.Screen name="income/[id]" options={{ title: 'Income' }} />
             <Stack.Screen name="odometer/new" options={{ title: 'Odometer Reading', presentation: 'modal' }} />
           </Stack>
         </AuthProvider>

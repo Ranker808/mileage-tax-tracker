@@ -9,7 +9,7 @@ begin
 end $$;
 
 grant usage on schema public, auth, storage to authenticated;
-grant select, insert, update, delete on public.ventures, public.trips, public.expenses, public.odometer_readings to authenticated;
+grant select, insert, update, delete on public.ventures, public.trips, public.expenses, public.odometer_readings, public.income to authenticated;
 grant select, insert, update, delete on storage.objects to authenticated;
 grant select on auth.users to authenticated;
 

@@ -46,6 +46,11 @@ multiple side ventures, for IRS-compliant deductions. Built with Expo
     full trip- and expense-level line items, not just the summary
 14. Password reset from the sign-in screen, and a "Reset demo data" action
     in Settings
+15. Income tracking, per venture — log a payout or invoice against a
+    venture (toggle to "Income" on the Expenses tab) and Reports shows a
+    real **Business Profit** figure (income − expenses) alongside the
+    existing tax-focused **Net Deductible** (mileage deduction + expenses)
+    — see "Income Tracking & Business Profit" below
 
 Plus a **Demo Mode** ("Try Demo" on the sign-in screen) for trying the app
 with zero setup — see below.
@@ -137,15 +142,19 @@ supabase/tests/run.sh
 
 It checks, against an actual database rather than by inspection: a new
 venture's `user_id` defaults to the signed-in user; a second user sees
-none of the first user's ventures/trips/expenses/odometer readings; a
-user can't insert a row claiming someone else's `user_id`; a user can't
-update another user's row even by guessing its id; the private receipts
-storage bucket is isolated the same way; the odometer `(user_id, date)`
-upsert updates in place instead of duplicating; deleting a venture with
-logged trips is blocked; the `miles > 0` / valid-category check
-constraints reject bad data; the expanded expense category set (see
-"What's New" below) is fully accepted; and `trips.notes` is optional and
-round-trips correctly. Needs a local Postgres reachable as a superuser
+none of the first user's ventures/trips/expenses/odometer readings/income;
+a user can't insert a row claiming someone else's `user_id` (ventures and
+income both, since that's exactly the mistake a new table's RLS policy
+could get wrong); a user can't update another user's row even by guessing
+its id; the private receipts storage bucket is isolated the same way; the
+odometer `(user_id, date)` upsert updates in place instead of duplicating;
+deleting a venture is blocked while it still has trips, or separately,
+while it still has income (checked independently, on a venture with no
+trips, so one FK constraint's presence can't mask the other's absence);
+the `miles > 0` / valid-category / income-`amount >= 0` check constraints
+all reject bad data; the expanded expense category set is fully accepted;
+and `trips.notes` is optional and round-trips correctly. 19 assertions in
+total. Needs a local Postgres reachable as a superuser
 (`createdb`/`dropdb`/`psql` on your PATH) — nothing else.
 
 ## Project Structure
@@ -219,6 +228,33 @@ Settings. This is also why it can't be verified from a sandboxed dev
 environment — the manual Start/Stop mode was verified end-to-end
 (including simulated GPS movement) in a real browser, but true background
 location behavior on a real device is something only you can confirm.
+
+## Income Tracking & Business Profit
+
+The app tracked costs from day one (mileage deduction, expenses) but had
+no concept of revenue — which meant it couldn't actually answer its own
+tagline's question of which venture is "actually working." Income closes
+that gap:
+
+- **Logging income** — on the Expenses tab, a segmented "Expenses / Income"
+  toggle at the top switches the whole screen (search, date range, venture
+  filter, list, the `+` button) between the two, rather than adding a 6th
+  bottom tab (the tab bar already has 5 — Trips, Expenses, Ventures,
+  Reports, Settings — and a 6th starts to feel cramped on a phone). An
+  income entry is just date, venture, amount, and a source (e.g. "DoorDash
+  weekly payout", "Invoice — Acme Corp") — see `src/components/IncomeForm.tsx`.
+- **Two different bottom-line numbers, on purpose** — Reports' hero card
+  now shows both side by side:
+  - **Net Deductible** (mileage deduction + expenses) — the existing
+    tax-focused figure, what reduces your taxable income.
+  - **Business Profit** (income − expenses) — real cash flow. The mileage
+    deduction is deliberately excluded here: it's a tax construct, not
+    money you actually spent, so folding it into "profit" would overstate
+    how much a venture is really making. See `computeVentureRollups` in
+    `src/lib/reportCalculations.ts` for exactly how each is calculated.
+- **Export** — income gets its own CSV file (alongside trips and expenses)
+  and its own table in the detailed PDF report, with Income and Business
+  Profit added to the summary table.
 
 ## Demo Mode
 

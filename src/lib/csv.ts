@@ -1,4 +1,4 @@
-import type { Expense, Trip, Venture } from '../types/database';
+import type { Expense, Income, Trip, Venture } from '../types/database';
 import { calculateDeduction, getMileageRateForDate } from './mileageRates';
 import { EXPENSE_CATEGORY_META } from './expenseCategories';
 
@@ -60,6 +60,20 @@ export function expensesToCsv(expenses: Expense[], ventureById: Map<string, Vent
       expense.amount.toFixed(2),
       expense.notes ?? '',
       expense.receipt_photo_url ? 'Yes' : 'No',
+    ])
+  );
+  return [header, ...rows].join('\n');
+}
+
+export function incomeToCsv(income: Income[], ventureById: Map<string, Venture>): string {
+  const header = toRow(['Date', 'Venture', 'Source', 'Amount', 'Notes']);
+  const rows = income.map((entry) =>
+    toRow([
+      entry.date,
+      ventureById.get(entry.venture_id)?.name ?? 'Unknown',
+      entry.source,
+      entry.amount.toFixed(2),
+      entry.notes ?? '',
     ])
   );
   return [header, ...rows].join('\n');

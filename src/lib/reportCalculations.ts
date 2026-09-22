@@ -1,5 +1,5 @@
 import { calculateDeduction } from './mileageRates';
-import type { Expense, ExpenseCategory, Trip, Venture } from '../types/database';
+import type { Expense, ExpenseCategory, Income, Trip, Venture } from '../types/database';
 
 export interface VentureRollup {
   ventureId: string;
@@ -8,43 +8,45 @@ export interface VentureRollup {
   totalDeduction: number;
   totalExpenses: number;
   netDeductible: number;
+  totalIncome: number;
+  businessProfit: number;
   tripCount: number;
   expenseCount: number;
+  incomeCount: number;
+}
+
+function emptyRollup(ventureId: string, ventureName: string): VentureRollup {
+  return {
+    ventureId,
+    ventureName,
+    totalMiles: 0,
+    totalDeduction: 0,
+    totalExpenses: 0,
+    netDeductible: 0,
+    totalIncome: 0,
+    businessProfit: 0,
+    tripCount: 0,
+    expenseCount: 0,
+    incomeCount: 0,
+  };
 }
 
 export function computeVentureRollups(
   ventures: Venture[],
   trips: Trip[],
-  expenses: Expense[]
+  expenses: Expense[],
+  income: Income[] = []
 ): VentureRollup[] {
   const byVenture = new Map<string, VentureRollup>();
 
   for (const venture of ventures) {
-    byVenture.set(venture.id, {
-      ventureId: venture.id,
-      ventureName: venture.name,
-      totalMiles: 0,
-      totalDeduction: 0,
-      totalExpenses: 0,
-      netDeductible: 0,
-      tripCount: 0,
-      expenseCount: 0,
-    });
+    byVenture.set(venture.id, emptyRollup(venture.id, venture.name));
   }
 
   for (const trip of trips) {
     let rollup = byVenture.get(trip.venture_id);
     if (!rollup) {
-      rollup = {
-        ventureId: trip.venture_id,
-        ventureName: 'Unknown venture',
-        totalMiles: 0,
-        totalDeduction: 0,
-        totalExpenses: 0,
-        netDeductible: 0,
-        tripCount: 0,
-        expenseCount: 0,
-      };
+      rollup = emptyRollup(trip.venture_id, 'Unknown venture');
       byVenture.set(trip.venture_id, rollup);
     }
     rollup.totalMiles += trip.miles;
@@ -61,27 +63,33 @@ export function computeVentureRollups(
   for (const expense of expenses) {
     let rollup = byVenture.get(expense.venture_id);
     if (!rollup) {
-      rollup = {
-        ventureId: expense.venture_id,
-        ventureName: 'Unknown venture',
-        totalMiles: 0,
-        totalDeduction: 0,
-        totalExpenses: 0,
-        netDeductible: 0,
-        tripCount: 0,
-        expenseCount: 0,
-      };
+      rollup = emptyRollup(expense.venture_id, 'Unknown venture');
       byVenture.set(expense.venture_id, rollup);
     }
     rollup.totalExpenses += expense.amount;
     rollup.expenseCount += 1;
   }
 
+  for (const entry of income) {
+    let rollup = byVenture.get(entry.venture_id);
+    if (!rollup) {
+      rollup = emptyRollup(entry.venture_id, 'Unknown venture');
+      byVenture.set(entry.venture_id, rollup);
+    }
+    rollup.totalIncome += entry.amount;
+    rollup.incomeCount += 1;
+  }
+
   for (const rollup of byVenture.values()) {
     rollup.totalMiles = Math.round(rollup.totalMiles * 100) / 100;
     rollup.totalDeduction = Math.round(rollup.totalDeduction * 100) / 100;
     rollup.totalExpenses = Math.round(rollup.totalExpenses * 100) / 100;
+    rollup.totalIncome = Math.round(rollup.totalIncome * 100) / 100;
     rollup.netDeductible = Math.round((rollup.totalDeduction + rollup.totalExpenses) * 100) / 100;
+    // Business profit is real cash flow (income - expenses); the mileage
+    // deduction is a tax construct, not a cost you actually paid, so it's
+    // deliberately excluded here even though it's part of netDeductible.
+    rollup.businessProfit = Math.round((rollup.totalIncome - rollup.totalExpenses) * 100) / 100;
   }
 
   return Array.from(byVenture.values()).sort((a, b) => b.netDeductible - a.netDeductible);
@@ -94,10 +102,23 @@ export function sumRollups(rollups: VentureRollup[]): Omit<VentureRollup, 'ventu
       totalDeduction: Math.round((acc.totalDeduction + r.totalDeduction) * 100) / 100,
       totalExpenses: Math.round((acc.totalExpenses + r.totalExpenses) * 100) / 100,
       netDeductible: Math.round((acc.netDeductible + r.netDeductible) * 100) / 100,
+      totalIncome: Math.round((acc.totalIncome + r.totalIncome) * 100) / 100,
+      businessProfit: Math.round((acc.businessProfit + r.businessProfit) * 100) / 100,
       tripCount: acc.tripCount + r.tripCount,
       expenseCount: acc.expenseCount + r.expenseCount,
+      incomeCount: acc.incomeCount + r.incomeCount,
     }),
-    { totalMiles: 0, totalDeduction: 0, totalExpenses: 0, netDeductible: 0, tripCount: 0, expenseCount: 0 }
+    {
+      totalMiles: 0,
+      totalDeduction: 0,
+      totalExpenses: 0,
+      netDeductible: 0,
+      totalIncome: 0,
+      businessProfit: 0,
+      tripCount: 0,
+      expenseCount: 0,
+      incomeCount: 0,
+    }
   );
 }
 

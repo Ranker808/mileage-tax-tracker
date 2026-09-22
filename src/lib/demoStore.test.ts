@@ -105,6 +105,39 @@ describe('demoStore expenses', () => {
   });
 });
 
+describe('demoStore income', () => {
+  it('seeds four income entries', () => {
+    expect(demoStore.listIncome({})).toHaveLength(4);
+  });
+
+  it('addIncome then deleteIncome round-trips cleanly', () => {
+    demoStore.addIncome({
+      venture_id: 'v1',
+      date: '2026-09-19',
+      amount: 250,
+      source: 'Test payout',
+      notes: null,
+    });
+    const added = demoStore.listIncome({}).find((i) => i.amount === 250);
+    expect(added).toBeDefined();
+    expect(demoStore.fetchIncome(added!.id)).toEqual(added);
+    demoStore.deleteIncome(added!.id);
+    expect(demoStore.fetchIncome(added!.id)).toBeNull();
+  });
+
+  it('updateIncome updates fields in place', () => {
+    const [entry] = demoStore.listIncome({});
+    demoStore.updateIncome(entry.id, { amount: 999 });
+    expect(demoStore.fetchIncome(entry.id)?.amount).toBe(999);
+  });
+
+  it('listIncome filters by ventureId', () => {
+    const filtered = demoStore.listIncome({ ventureId: 'v1' });
+    expect(filtered.every((i) => i.venture_id === 'v1')).toBe(true);
+    expect(filtered.length).toBeGreaterThan(0);
+  });
+});
+
 describe('demoStore odometer readings', () => {
   it('addOdometerReading upserts by date instead of duplicating', () => {
     const before = demoStore.listOdometerReadings().length;
@@ -125,8 +158,10 @@ describe('resetDemoStore', () => {
   it('restores the original seed data after mutations', () => {
     demoStore.addVenture('Temporary');
     demoStore.deleteTrip(demoStore.listTrips({})[0].id);
+    demoStore.deleteIncome(demoStore.listIncome({})[0].id);
     resetDemoStore();
     expect(demoStore.listVentures(true).some((v) => v.name === 'Temporary')).toBe(false);
     expect(demoStore.listTrips({})).toHaveLength(4);
+    expect(demoStore.listIncome({})).toHaveLength(4);
   });
 });

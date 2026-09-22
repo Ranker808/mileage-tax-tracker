@@ -3,12 +3,13 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { Ionicons } from '@expo/vector-icons';
 import { useTrips } from '../../src/hooks/useTrips';
 import { useExpenses } from '../../src/hooks/useExpenses';
+import { useIncome } from '../../src/hooks/useIncome';
 import { useVentures } from '../../src/hooks/useVentures';
 import { VentureChipRow } from '../../src/components/VentureChipRow';
 import { BarChart } from '../../src/components/BarChart';
 import { computeVentureRollups, groupExpensesByCategory, groupTripsByMonth, sumRollups } from '../../src/lib/reportCalculations';
 import { formatCurrency, formatMiles } from '../../src/lib/format';
-import { tripsToCsv, expensesToCsv } from '../../src/lib/csv';
+import { tripsToCsv, expensesToCsv, incomeToCsv } from '../../src/lib/csv';
 import { shareCsv, sharePdfFromHtml, sanitizeFilenamePart } from '../../src/lib/exportFiles';
 import { buildDetailedReportHtml } from '../../src/lib/pdfReport';
 import { EXPENSE_CATEGORY_META } from '../../src/lib/expenseCategories';
@@ -51,8 +52,12 @@ export default function ReportsScreen() {
 
   const { trips, loading: tripsLoading } = useTrips({ ventureId: ventureFilter, startDate: start, endDate: end });
   const { expenses, loading: expensesLoading } = useExpenses({ ventureId: ventureFilter, startDate: start, endDate: end });
+  const { income, loading: incomeLoading } = useIncome({ ventureId: ventureFilter, startDate: start, endDate: end });
 
-  const rollups = useMemo(() => computeVentureRollups(ventures, trips, expenses), [ventures, trips, expenses]);
+  const rollups = useMemo(
+    () => computeVentureRollups(ventures, trips, expenses, income),
+    [ventures, trips, expenses, income]
+  );
   const visibleRollups = ventureFilter ? rollups.filter((r) => r.ventureId === ventureFilter) : rollups;
   const totals = useMemo(() => sumRollups(visibleRollups), [visibleRollups]);
 
@@ -82,11 +87,13 @@ export default function ReportsScreen() {
     try {
       const tripsCsv = tripsToCsv(trips, ventureById);
       const expensesCsv = expensesToCsv(expenses, ventureById);
+      const incomeCsv = incomeToCsv(income, ventureById);
       const scope = sanitizeFilenamePart(
         ventureFilter ? ventureById.get(ventureFilter)?.name ?? 'venture' : 'all-ventures'
       );
       await shareCsv(`trips-${scope}-${preset}.csv`, tripsCsv);
       await shareCsv(`expenses-${scope}-${preset}.csv`, expensesCsv);
+      await shareCsv(`income-${scope}-${preset}.csv`, incomeCsv);
     } finally {
       setExporting(null);
     }
@@ -103,6 +110,7 @@ export default function ReportsScreen() {
         totals,
         trips,
         expenses,
+        income,
         ventureById,
       });
       await sharePdfFromHtml(html, `pnl-report-${preset}.pdf`);
@@ -111,7 +119,7 @@ export default function ReportsScreen() {
     }
   };
 
-  const loading = tripsLoading || expensesLoading;
+  const loading = tripsLoading || expensesLoading || incomeLoading;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -120,8 +128,19 @@ export default function ReportsScreen() {
           <Text style={styles.heroEyebrow}>{label}</Text>
           {loading ? <ActivityIndicator size="small" color={colors.white} /> : null}
         </View>
-        <Text style={styles.heroLabel}>Net deductible</Text>
-        <Text style={styles.heroNumber}>{formatCurrency(totals.netDeductible)}</Text>
+        <View style={styles.heroPrimaryRow}>
+          <View style={styles.heroPrimaryCol}>
+            <Text style={styles.heroLabel}>Net deductible</Text>
+            <Text style={styles.heroNumber}>{formatCurrency(totals.netDeductible)}</Text>
+          </View>
+          <View style={styles.heroPrimaryDivider} />
+          <View style={styles.heroPrimaryCol}>
+            <Text style={styles.heroLabel}>Business profit</Text>
+            <Text style={[styles.heroNumber, totals.businessProfit < 0 && styles.heroNumberNegative]}>
+              {formatCurrency(totals.businessProfit)}
+            </Text>
+          </View>
+        </View>
         <View style={styles.heroDivider} />
         <View style={styles.heroGrid}>
           <View style={styles.heroStat}>
@@ -131,6 +150,10 @@ export default function ReportsScreen() {
           <View style={styles.heroStat}>
             <Text style={styles.heroStatValue}>{formatCurrency(totals.totalDeduction)}</Text>
             <Text style={styles.heroStatLabel}>Mileage deduction</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{formatCurrency(totals.totalIncome)}</Text>
+            <Text style={styles.heroStatLabel}>Income</Text>
           </View>
           <View style={styles.heroStat}>
             <Text style={styles.heroStatValue}>{formatCurrency(totals.totalExpenses)}</Text>
@@ -202,10 +225,14 @@ export default function ReportsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.ventureRowName}>{r.ventureName}</Text>
                     <Text style={styles.ventureRowSub}>
-                      {formatMiles(r.totalMiles)} · {r.tripCount} trips · {r.expenseCount} expenses
+                      {formatMiles(r.totalMiles)} · {r.tripCount} trips · {r.expenseCount} expenses · {r.incomeCount}{' '}
+                      income
                     </Text>
                   </View>
-                  <Text style={styles.ventureRowNet}>{formatCurrency(r.netDeductible)}</Text>
+                  <View style={styles.ventureRowRight}>
+                    <Text style={styles.ventureRowNet}>{formatCurrency(r.netDeductible)}</Text>
+                    <Text style={styles.ventureRowSubValue}>deductible</Text>
+                  </View>
                 </View>
               );
             })
@@ -285,17 +312,31 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   heroLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.75)',
     marginTop: spacing.md,
     fontWeight: '600',
   },
   heroNumber: {
-    fontSize: 40,
+    fontSize: 27,
     fontWeight: '800',
     color: colors.white,
-    letterSpacing: -1,
+    letterSpacing: -0.6,
     marginTop: 2,
+  },
+  heroNumberNegative: {
+    color: '#FCA5A5',
+  },
+  heroPrimaryRow: {
+    flexDirection: 'row',
+  },
+  heroPrimaryCol: {
+    flex: 1,
+  },
+  heroPrimaryDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    marginHorizontal: spacing.lg,
   },
   heroDivider: {
     height: StyleSheet.hairlineWidth,
@@ -304,10 +345,11 @@ const styles = StyleSheet.create({
   },
   heroGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: spacing.md,
   },
   heroStat: {
-    flex: 1,
+    width: '50%',
   },
   heroStatValue: {
     fontSize: 17,
@@ -407,10 +449,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
+  ventureRowRight: {
+    alignItems: 'flex-end',
+  },
   ventureRowNet: {
     fontSize: 15,
     fontWeight: '800',
     color: colors.success,
+  },
+  ventureRowSubValue: {
+    fontSize: 10.5,
+    color: colors.textFaint,
+    fontWeight: '600',
+    marginTop: 1,
   },
   exportRow: {
     flexDirection: 'row',

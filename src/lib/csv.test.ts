@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { expensesToCsv, tripsToCsv } from './csv';
-import type { Expense, Trip, Venture } from '../types/database';
+import { expensesToCsv, incomeToCsv, tripsToCsv } from './csv';
+import type { Expense, Income, Trip, Venture } from '../types/database';
 
 const ventureById = new Map<string, Venture>([
   ['v1', { id: 'v1', user_id: 'u1', name: 'DoorDash', active: true, created_at: '2026-01-01' }],
@@ -127,5 +127,60 @@ describe('expensesToCsv', () => {
     ];
     const dataLine = expensesToCsv(expenses, ventureById).split('\n')[1];
     expect(dataLine).toBe('2026-01-01,DoorDash,Other,10.00,,No');
+  });
+});
+
+describe('incomeToCsv', () => {
+  it('produces a header row plus one row per income entry', () => {
+    const income: Income[] = [
+      {
+        id: 'i1',
+        user_id: 'u1',
+        venture_id: 'v1',
+        date: '2026-01-01',
+        amount: 380,
+        source: 'DoorDash weekly payout',
+        notes: null,
+        created_at: '2026-01-01',
+      },
+    ];
+    const csv = incomeToCsv(income, ventureById);
+    const lines = csv.split('\n');
+    expect(lines[0]).toBe('Date,Venture,Source,Amount,Notes');
+    expect(lines[1]).toBe('2026-01-01,DoorDash,DoorDash weekly payout,380.00,');
+  });
+
+  it('falls back to "Unknown" for a venture id not in the map', () => {
+    const income: Income[] = [
+      {
+        id: 'i1',
+        user_id: 'u1',
+        venture_id: 'missing-venture',
+        date: '2026-01-01',
+        amount: 50,
+        source: 'Test',
+        notes: null,
+        created_at: '2026-01-01',
+      },
+    ];
+    const dataLine = incomeToCsv(income, ventureById).split('\n')[1];
+    expect(dataLine).toContain('Unknown');
+  });
+
+  it('quotes a source field containing a comma', () => {
+    const income: Income[] = [
+      {
+        id: 'i1',
+        user_id: 'u1',
+        venture_id: 'v1',
+        date: '2026-01-01',
+        amount: 50,
+        source: 'Invoice #123, Acme Corp',
+        notes: null,
+        created_at: '2026-01-01',
+      },
+    ];
+    const dataLine = incomeToCsv(income, ventureById).split('\n')[1];
+    expect(dataLine).toContain('"Invoice #123, Acme Corp"');
   });
 });

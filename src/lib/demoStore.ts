@@ -2,7 +2,7 @@
 // whole app (add/edit/archive/delete, one-tap reassignment, everything)
 // without a Supabase project. Resets whenever the app reloads — that's
 // intentional, a demo isn't meant to be durable storage.
-import type { Expense, OdometerReading, Trip, Venture } from '../types/database';
+import type { Expense, Income, OdometerReading, Trip, Venture } from '../types/database';
 
 const DEMO_USER_ID = 'demo-user';
 
@@ -43,10 +43,20 @@ function initialOdometerReadings(): OdometerReading[] {
   return [{ id: 'o1', user_id: DEMO_USER_ID, date: '2026-01-01', reading: 41250.0, created_at: '2026-01-01T00:00:00Z' }];
 }
 
+function initialIncome(): Income[] {
+  return [
+    { id: 'i1', user_id: DEMO_USER_ID, venture_id: 'v1', date: '2026-09-16', amount: 380.0, source: 'DoorDash weekly payout', notes: null, created_at: '2026-09-16T00:00:00Z' },
+    { id: 'i2', user_id: DEMO_USER_ID, venture_id: 'v1', date: '2026-08-29', amount: 210.0, source: 'DoorDash weekly payout', notes: null, created_at: '2026-08-29T00:00:00Z' },
+    { id: 'i3', user_id: DEMO_USER_ID, venture_id: 'v2', date: '2026-09-12', amount: 150.0, source: 'Client notarization fee', notes: null, created_at: '2026-09-12T00:00:00Z' },
+    { id: 'i4', user_id: DEMO_USER_ID, venture_id: 'v3', date: '2026-09-05', amount: 600.0, source: 'Invoice — Acme Corp', notes: null, created_at: '2026-09-05T00:00:00Z' },
+  ];
+}
+
 let ventures = initialVentures();
 let trips = initialTrips();
 let expenses = initialExpenses();
 let odometerReadings = initialOdometerReadings();
+let income = initialIncome();
 
 /** Restores the demo store to its original seed data. Used by tests, and available for a future "Reset Demo Data" action. */
 export function resetDemoStore(): void {
@@ -54,6 +64,7 @@ export function resetDemoStore(): void {
   trips = initialTrips();
   expenses = initialExpenses();
   odometerReadings = initialOdometerReadings();
+  income = initialIncome();
 }
 
 export const demoStore = {
@@ -131,6 +142,30 @@ export const demoStore = {
   },
   deleteExpense(id: string): { error: string | null } {
     expenses = expenses.filter((e) => e.id !== id);
+    return { error: null };
+  },
+
+  // ---- income ----
+  listIncome(filter: { ventureId?: string | null; startDate?: string | null; endDate?: string | null }): Income[] {
+    return income
+      .filter((i) => !filter.ventureId || i.venture_id === filter.ventureId)
+      .filter((i) => !filter.startDate || i.date >= filter.startDate)
+      .filter((i) => !filter.endDate || i.date <= filter.endDate)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  },
+  fetchIncome(id: string): Income | null {
+    return income.find((i) => i.id === id) ?? null;
+  },
+  addIncome(input: Omit<Income, 'id' | 'user_id' | 'created_at'>): { error: string | null } {
+    income = [...income, { ...input, id: uid('i'), user_id: DEMO_USER_ID, created_at: nowIso() }];
+    return { error: null };
+  },
+  updateIncome(id: string, updates: Partial<Omit<Income, 'id' | 'user_id' | 'created_at'>>): { error: string | null } {
+    income = income.map((i) => (i.id === id ? { ...i, ...updates } : i));
+    return { error: null };
+  },
+  deleteIncome(id: string): { error: string | null } {
+    income = income.filter((i) => i.id !== id);
     return { error: null };
   },
 

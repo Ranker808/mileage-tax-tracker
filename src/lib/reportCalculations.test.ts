@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeVentureRollups, groupExpensesByCategory, groupTripsByMonth, sumRollups } from './reportCalculations';
-import type { Expense, Trip, Venture } from '../types/database';
+import type { Expense, Income, Trip, Venture } from '../types/database';
 
 const ventures: Venture[] = [
   { id: 'v1', user_id: 'u1', name: 'DoorDash', active: true, created_at: '2026-01-01' },
@@ -32,6 +32,20 @@ function expense(overrides: Partial<Expense>): Expense {
     amount: 10,
     category: 'gas',
     receipt_photo_url: null,
+    notes: null,
+    created_at: '2026-01-15',
+    ...overrides,
+  };
+}
+
+function income(overrides: Partial<Income>): Income {
+  return {
+    id: 'i1',
+    user_id: 'u1',
+    venture_id: 'v1',
+    date: '2026-01-15',
+    amount: 100,
+    source: 'Test payout',
     notes: null,
     created_at: '2026-01-15',
     ...overrides,
@@ -76,6 +90,22 @@ describe('computeVentureRollups', () => {
     expect(doorDash.netDeductible).toBe(100);
   });
 
+  it('business profit is income minus expenses, excluding the mileage deduction', () => {
+    const trips = [trip({ venture_id: 'v1', miles: 100, date: '2026-01-01' })]; // 72.5 deduction -- not cash
+    const expenses = [expense({ venture_id: 'v1', amount: 30 })];
+    const incomeEntries = [income({ venture_id: 'v1', amount: 500 })];
+    const rollups = computeVentureRollups(ventures, trips, expenses, incomeEntries);
+    const doorDash = rollups.find((r) => r.ventureId === 'v1')!;
+    expect(doorDash.totalIncome).toBe(500);
+    expect(doorDash.businessProfit).toBe(470); // 500 - 30, NOT minus the 72.5 mileage deduction
+    expect(doorDash.incomeCount).toBe(1);
+  });
+
+  it('income for a venture with no logged income defaults to zero, not undefined/NaN', () => {
+    const rollups = computeVentureRollups(ventures, [], []);
+    expect(rollups.every((r) => r.totalIncome === 0 && r.businessProfit === 0)).toBe(true);
+  });
+
   it('does not silently drop a trip/expense that references an unknown venture', () => {
     const trips = [trip({ venture_id: 'ghost', miles: 10, date: '2026-01-01' })];
     const rollups = computeVentureRollups(ventures, trips, []);
@@ -113,14 +143,18 @@ describe('sumRollups', () => {
         trip({ id: 't1', venture_id: 'v1', miles: 100, date: '2026-01-01' }),
         trip({ id: 't2', venture_id: 'v2', miles: 50, date: '2026-01-01' }),
       ],
-      [expense({ id: 'e1', venture_id: 'v1', amount: 20 })]
+      [expense({ id: 'e1', venture_id: 'v1', amount: 20 })],
+      [income({ id: 'i1', venture_id: 'v1', amount: 200 })]
     );
     const totals = sumRollups(rollups);
     expect(totals.totalMiles).toBe(150);
     expect(totals.totalDeduction).toBe(108.75); // (100 + 50) * 0.725
     expect(totals.totalExpenses).toBe(20);
+    expect(totals.totalIncome).toBe(200);
+    expect(totals.businessProfit).toBe(180); // 200 income - 20 expenses
     expect(totals.tripCount).toBe(2);
     expect(totals.expenseCount).toBe(1);
+    expect(totals.incomeCount).toBe(1);
   });
 
   it('returns all zeros for an empty list', () => {
@@ -129,8 +163,11 @@ describe('sumRollups', () => {
       totalDeduction: 0,
       totalExpenses: 0,
       netDeductible: 0,
+      totalIncome: 0,
+      businessProfit: 0,
       tripCount: 0,
       expenseCount: 0,
+      incomeCount: 0,
     });
   });
 });

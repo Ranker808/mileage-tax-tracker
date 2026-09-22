@@ -60,6 +60,17 @@ export interface OdometerReading {
   created_at: string;
 }
 
+export interface Income {
+  id: string;
+  user_id: string;
+  venture_id: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  source: string;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -85,6 +96,12 @@ export interface Database {
         Row: OdometerReading;
         Insert: Omit<OdometerReading, 'id' | 'user_id' | 'created_at'> & { id?: string };
         Update: Partial<Omit<OdometerReading, 'id' | 'user_id' | 'created_at'>>;
+        Relationships: [];
+      };
+      income: {
+        Row: Income;
+        Insert: Omit<Income, 'id' | 'user_id' | 'created_at'> & { id?: string };
+        Update: Partial<Omit<Income, 'id' | 'user_id' | 'created_at'>>;
         Relationships: [];
       };
     };

@@ -27,6 +27,8 @@ insert into public.trips (venture_id, date, start_location, end_location, busine
   select id, '2026-03-01', 'Home', 'Client', 'Delivery', 12.5 from public.ventures where name = 'Alice DoorDash';
 insert into public.expenses (venture_id, date, amount, category)
   select id, '2026-03-01', 40.00, 'gas' from public.ventures where name = 'Alice DoorDash';
+insert into public.income (venture_id, date, amount, source)
+  select id, '2026-03-01', 380.00, 'Test payout' from public.ventures where name = 'Alice DoorDash';
 insert into public.odometer_readings (date, reading) values ('2026-01-01', 50000);
 
 do $$
@@ -58,6 +60,10 @@ begin
   select count(*) into v_count from public.odometer_readings;
   if v_count <> 0 then raise exception 'FAIL: Bob can see Alice''s odometer readings (RLS isolation broken)'; end if;
   raise notice 'PASS: Bob sees zero of Alice''s odometer readings';
+
+  select count(*) into v_count from public.income;
+  if v_count <> 0 then raise exception 'FAIL: Bob can see Alice''s income (RLS isolation broken)'; end if;
+  raise notice 'PASS: Bob sees zero of Alice''s income';
 end $$;
 
 -- 4. Bob cannot spoof Alice's user_id on insert (the WITH CHECK clause must reject this)
@@ -222,6 +228,75 @@ begin
   insert into public.trips (venture_id, date, start_location, end_location, business_purpose, miles)
     values (v_venture_id, '2026-03-05', 'A', 'B', 'test', 3.5);
   raise notice 'PASS: trips.notes is optional and round-trips correctly when provided';
+end $$;
+
+-- 13. income.venture_id has ON DELETE RESTRICT, proven independently of
+-- trips/expenses (a fresh venture with only an income entry, no trips)
+do $$
+declare v_deleted boolean := false;
+declare v_venture_id uuid;
+begin
+  insert into public.ventures (name, active) values ('Alice Income-Only Venture', true)
+    returning id into v_venture_id;
+  insert into public.income (venture_id, date, amount, source)
+    values (v_venture_id, '2026-03-06', 100, 'Test payout');
+  begin
+    delete from public.ventures where id = v_venture_id;
+    v_deleted := true;
+  exception
+    when foreign_key_violation then
+      v_deleted := false;
+  end;
+  if v_deleted then
+    raise exception 'FAIL: deleted a venture that still has income referencing it (should be RESTRICTed)';
+  else
+    raise notice 'PASS: deleting a venture with income is correctly blocked by ON DELETE RESTRICT';
+  end if;
+end $$;
+
+-- 14. Income amount must be >= 0 (check constraint)
+do $$
+declare v_inserted boolean := false;
+begin
+  begin
+    insert into public.income (venture_id, date, amount, source)
+      select id, '2026-03-07', -10, 'Bad payout' from public.ventures where name = 'Alice DoorDash';
+    v_inserted := true;
+  exception
+    when check_violation then
+      v_inserted := false;
+  end;
+  if v_inserted then
+    raise exception 'FAIL: inserted income with a negative amount (check constraint not enforced)';
+  else
+    raise notice 'PASS: a negative income amount is rejected by the amount >= 0 check constraint';
+  end if;
+end $$;
+
+-- 15. Bob cannot spoof Alice's user_id on an income insert
+do $$
+declare v_inserted boolean := false;
+declare v_alice_venture_id uuid;
+begin
+  select value::uuid into v_alice_venture_id from test_scratch where key = 'alice_venture_id';
+  perform set_test_user('22222222-2222-2222-2222-222222222222'); -- Bob
+  begin
+    insert into public.income (user_id, venture_id, date, amount, source)
+      values ('11111111-1111-1111-1111-111111111111', v_alice_venture_id, '2026-03-07', 50, 'Spoofed');
+    v_inserted := true;
+  exception
+    when insufficient_privilege then
+      v_inserted := false;
+    when foreign_key_violation then
+      -- venture_id itself isn't visible to Bob under RLS either; still a rejection
+      v_inserted := false;
+  end;
+  if v_inserted then
+    raise exception 'FAIL: Bob was able to insert income claiming to be Alice (RLS with-check broken)';
+  else
+    raise notice 'PASS: Bob cannot insert income with someone else''s user_id';
+  end if;
+  perform set_test_user('11111111-1111-1111-1111-111111111111'); -- back to Alice
 end $$;
 
 reset role;

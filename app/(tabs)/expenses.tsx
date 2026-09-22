@@ -3,6 +3,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View 
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../../src/hooks/useExpenses';
+import { useIncome } from '../../src/hooks/useIncome';
 import { useVentures } from '../../src/hooks/useVentures';
 import { VentureChipRow } from '../../src/components/VentureChipRow';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -12,18 +13,29 @@ import { colors, radius, shadow, shadowSm, spacing, type, ventureAccent } from '
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+type Mode = 'expenses' | 'income';
+
 export default function ExpensesScreen() {
   const router = useRouter();
   const { ventures } = useVentures();
+  const [mode, setMode] = useState<Mode>('expenses');
   const [ventureFilter, setVentureFilter] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const { expenses, loading, refresh } = useExpenses({
+
+  const dateRangeFilter = {
     ventureId: ventureFilter,
     startDate: DATE_RE.test(dateFrom) ? dateFrom : null,
     endDate: DATE_RE.test(dateTo) ? dateTo : null,
-  });
+  };
+  // Both hooks are called unconditionally (rules of hooks) regardless of
+  // which mode is active -- only one of the two result sets is rendered.
+  const { expenses, loading: expensesLoading, refresh: refreshExpenses } = useExpenses(dateRangeFilter);
+  const { income, loading: incomeLoading, refresh: refreshIncome } = useIncome(dateRangeFilter);
+
+  const loading = mode === 'expenses' ? expensesLoading : incomeLoading;
+  const refresh = mode === 'expenses' ? refreshExpenses : refreshIncome;
 
   const ventureById = useMemo(() => new Map(ventures.map((v) => [v.id, v])), [ventures]);
 
@@ -40,16 +52,43 @@ export default function ExpensesScreen() {
     });
   }, [expenses, search, ventureById]);
 
+  const visibleIncome = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return income;
+    return income.filter((i) => {
+      const venture = ventureById.get(i.venture_id);
+      return (
+        i.source.toLowerCase().includes(q) ||
+        (i.notes ?? '').toLowerCase().includes(q) ||
+        (venture?.name ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [income, search, ventureById]);
+
   return (
     <View style={styles.container}>
       <View style={styles.filterBar}>
+        <View style={styles.modeRow}>
+          <Pressable
+            style={[styles.modeChip, mode === 'expenses' && styles.modeChipSelected]}
+            onPress={() => setMode('expenses')}
+          >
+            <Text style={[styles.modeChipText, mode === 'expenses' && styles.modeChipTextSelected]}>Expenses</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.modeChip, mode === 'income' && styles.modeChipSelected]}
+            onPress={() => setMode('income')}
+          >
+            <Text style={[styles.modeChipText, mode === 'income' && styles.modeChipTextSelected]}>Income</Text>
+          </Pressable>
+        </View>
         <View style={styles.searchRow}>
           <Ionicons name="search" size={16} color={colors.textFaint} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search category, notes, venture…"
+            placeholder={mode === 'expenses' ? 'Search category, notes, venture…' : 'Search source, notes, venture…'}
             placeholderTextColor={colors.textFaint}
           />
         </View>
@@ -92,63 +131,120 @@ export default function ExpensesScreen() {
         />
       </View>
 
-      <FlatList
-        data={visibleExpenses}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={visibleExpenses.length === 0 ? styles.emptyContainer : styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
-        ListEmptyComponent={
-          <EmptyState
-            icon="receipt-outline"
-            title={expenses.length === 0 ? 'No expenses yet' : 'No matches'}
-            message={
-              expenses.length === 0
-                ? 'Log gas, maintenance, or supply costs against a venture.'
-                : 'Try a different search or clear your filters.'
-            }
-          />
-        }
-        renderItem={({ item }) => {
-          const venture = ventureById.get(item.venture_id);
-          const accent = ventureAccent(venture?.name ?? '');
-          return (
-            <Pressable style={styles.card} onPress={() => router.push(`/expense/${item.id}`)}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.date}>{formatDate(item.date)}</Text>
-                <View style={[styles.ventureBadge, { backgroundColor: accent.bg }]}>
-                  <Text style={[styles.ventureBadgeText, { color: accent.fg }]}>
-                    {venture?.name ?? 'Unknown'}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.cardBody}>
-                <View style={styles.categoryIconWrap}>
-                  <Ionicons name={EXPENSE_CATEGORY_META[item.category].icon} size={18} color={colors.primary} />
-                </View>
-                <View style={styles.cardMain}>
-                  <Text style={styles.category}>{EXPENSE_CATEGORY_META[item.category].label}</Text>
-                  {item.notes ? (
-                    <Text style={styles.notes} numberOfLines={1}>
-                      {item.notes}
+      {mode === 'expenses' ? (
+        <FlatList
+          data={visibleExpenses}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={visibleExpenses.length === 0 ? styles.emptyContainer : styles.listContent}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="receipt-outline"
+              title={expenses.length === 0 ? 'No expenses yet' : 'No matches'}
+              message={
+                expenses.length === 0
+                  ? 'Log gas, maintenance, or supply costs against a venture.'
+                  : 'Try a different search or clear your filters.'
+              }
+            />
+          }
+          renderItem={({ item }) => {
+            const venture = ventureById.get(item.venture_id);
+            const accent = ventureAccent(venture?.name ?? '');
+            return (
+              <Pressable style={styles.card} onPress={() => router.push(`/expense/${item.id}`)}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.date}>{formatDate(item.date)}</Text>
+                  <View style={[styles.ventureBadge, { backgroundColor: accent.bg }]}>
+                    <Text style={[styles.ventureBadgeText, { color: accent.fg }]}>
+                      {venture?.name ?? 'Unknown'}
                     </Text>
-                  ) : null}
+                  </View>
                 </View>
-                <View style={styles.amountCol}>
-                  <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
-                  {item.receipt_photo_url ? (
-                    <View style={styles.receiptTag}>
-                      <Ionicons name="attach" size={11} color={colors.textMuted} />
-                      <Text style={styles.receiptTagText}>receipt</Text>
-                    </View>
-                  ) : null}
+                <View style={styles.cardBody}>
+                  <View style={styles.categoryIconWrap}>
+                    <Ionicons name={EXPENSE_CATEGORY_META[item.category].icon} size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.cardMain}>
+                    <Text style={styles.category}>{EXPENSE_CATEGORY_META[item.category].label}</Text>
+                    {item.notes ? (
+                      <Text style={styles.notes} numberOfLines={1}>
+                        {item.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.amountCol}>
+                    <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
+                    {item.receipt_photo_url ? (
+                      <View style={styles.receiptTag}>
+                        <Ionicons name="attach" size={11} color={colors.textMuted} />
+                        <Text style={styles.receiptTagText}>receipt</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            </Pressable>
-          );
-        }}
-      />
+              </Pressable>
+            );
+          }}
+        />
+      ) : (
+        <FlatList
+          data={visibleIncome}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={visibleIncome.length === 0 ? styles.emptyContainer : styles.listContent}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="cash-outline"
+              title={income.length === 0 ? 'No income logged yet' : 'No matches'}
+              message={
+                income.length === 0
+                  ? 'Log a payout or invoice against a venture to see real profit in Reports.'
+                  : 'Try a different search or clear your filters.'
+              }
+            />
+          }
+          renderItem={({ item }) => {
+            const venture = ventureById.get(item.venture_id);
+            const accent = ventureAccent(venture?.name ?? '');
+            return (
+              <Pressable style={styles.card} onPress={() => router.push(`/income/${item.id}`)}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.date}>{formatDate(item.date)}</Text>
+                  <View style={[styles.ventureBadge, { backgroundColor: accent.bg }]}>
+                    <Text style={[styles.ventureBadgeText, { color: accent.fg }]}>
+                      {venture?.name ?? 'Unknown'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.cardBody}>
+                  <View style={[styles.categoryIconWrap, styles.incomeIconWrap]}>
+                    <Ionicons name="cash-outline" size={18} color={colors.success} />
+                  </View>
+                  <View style={styles.cardMain}>
+                    <Text style={styles.category} numberOfLines={1}>
+                      {item.source}
+                    </Text>
+                    {item.notes ? (
+                      <Text style={styles.notes} numberOfLines={1}>
+                        {item.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.amountCol}>
+                    <Text style={[styles.amount, styles.incomeAmount]}>{formatCurrency(item.amount)}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          }}
+        />
+      )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/expense/new')}>
+      <Pressable
+        style={styles.fab}
+        onPress={() => router.push(mode === 'expenses' ? '/expense/new' : '/income/new')}
+      >
         <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
     </View>
@@ -165,6 +261,31 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: 4,
     gap: spacing.sm,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: radius.md,
+    padding: 3,
+    gap: 3,
+  },
+  modeChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+  },
+  modeChipSelected: {
+    backgroundColor: colors.card,
+    ...shadowSm,
+  },
+  modeChipText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  modeChipTextSelected: {
+    color: colors.ink,
   },
   searchRow: {
     flexDirection: 'row',
@@ -247,6 +368,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  incomeIconWrap: {
+    backgroundColor: colors.successMuted,
+  },
   cardMain: {
     flex: 1,
     minWidth: 0,
@@ -267,6 +391,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: colors.ink,
+  },
+  incomeAmount: {
+    color: colors.success,
   },
   receiptTag: {
     flexDirection: 'row',

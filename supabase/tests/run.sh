@@ -48,9 +48,9 @@ if grep -q '^ERROR' /tmp/mileage_rls_test.log; then
   echo "FAILED: unexpected SQL errors were printed above."
   exit 1
 fi
-if [ "$pass_count" -lt 15 ]; then
+if [ "$pass_count" -lt 19 ]; then
   echo
-  echo "FAILED: expected at least 15 PASS assertions, got $pass_count."
+  echo "FAILED: expected at least 19 PASS assertions, got $pass_count."
   exit 1
 fi
 
