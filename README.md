@@ -28,6 +28,9 @@ multiple side ventures, for IRS-compliant deductions. Built with Expo
 7. Unrestricted CSV/PDF export — no paywall, ever, on your own data
 8. Odometer reading reminders — an in-app banner near Jan 1 / Dec 31 on the
    Settings screen (no push notifications; see "Notifications" below)
+9. GPS trip tracking, three ways — manual Start/Stop, fully automatic
+   background detection, and a review queue for classifying detected
+   drives — see "GPS Trip Tracking" below
 
 Plus a **Demo Mode** ("Try Demo" on the sign-in screen) for trying the app
 with zero setup — see below.
@@ -154,6 +157,47 @@ Each trip's deduction is calculated from its own date, so add a new period
 to this list whenever the IRS publishes a new rate (including future
 mid-year splits).
 
+## GPS Trip Tracking
+
+Three ways to get a trip's route and mileage without typing it in by hand,
+all built on the same math (`src/lib/gps.ts` — haversine distance, GPS
+jitter filtering, and a speed-threshold `DriveDetector` state machine; this
+is the same technique MileIQ/Everlance use under the hood, there's no
+special OS API for "detect a drive"):
+
+- **Manual Start/Stop** (`app/trip/track.tsx`, the small navigate-icon
+  button on the Trips tab) — foreground-only, works in Expo Go. Tap Start,
+  drive, tap Stop, and it prefills a new trip's start/end address and
+  mileage from the recorded route for you to review and save.
+- **Automatic background detection** (`src/lib/backgroundLocationTask.ts`,
+  toggled from Settings → "Auto-detect drives") — watches your speed in
+  the background and detects when you start and stop driving with no
+  button at all. Detected drives don't know which venture or purpose they
+  belong to yet, so they land in a local review queue
+  (`app/trip/pending.tsx`, linked from Settings) instead of being saved
+  directly — tap one to classify it into a real trip, or discard it.
+- **Review queue** (`src/lib/pendingTrips.ts`) — the glue between the two:
+  detected-but-unclassified trips live in `AsyncStorage` only (never synced
+  to Supabase) until you assign them a venture and purpose via the same
+  trip form used everywhere else.
+
+**Automatic background detection requires a custom dev client / EAS
+build — it will not run reliably in Expo Go.** Background location on
+both iOS and Android needs a `expo-location` config plugin (already set
+up in `app.json`) baked into a native build; Expo Go ships a fixed set of
+native modules and can't host that. To test it on your own phone:
+
+```bash
+npx expo prebuild
+eas build --profile development --platform android   # or ios
+```
+
+then install that build on your phone and turn on "Auto-detect drives" in
+Settings. This is also why it can't be verified from a sandboxed dev
+environment — the manual Start/Stop mode was verified end-to-end
+(including simulated GPS movement) in a real browser, but true background
+location behavior on a real device is something only you can confirm.
+
 ## Demo Mode
 
 `src/lib/demoMode.ts` (a module-level flag) and `src/lib/demoStore.ts` (an
@@ -183,6 +227,7 @@ error. If you upgrade this dependency, re-run `npx tsc --noEmit` first.
 
 ## What's Explicitly Not in V1
 
-Automatic background GPS tracking, multi-user auth, payments/licensing,
-OCR receipt scanning, and an onboarding flow are all deferred — see
-`mileage-tracker-future-sell-plan.md`.
+Multi-user auth, payments/licensing, OCR receipt scanning, and an
+onboarding flow are all deferred — see `mileage-tracker-future-sell-plan.md`.
+(Automatic background GPS tracking *is* in V1 now — see "GPS Trip
+Tracking" above — but it needs a dev-client build, not Expo Go.)

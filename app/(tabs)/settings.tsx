@@ -1,16 +1,52 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/hooks/useAuth';
 import { odometerReminder, useOdometerReadings } from '../../src/hooks/useOdometerReadings';
 import { formatDate } from '../../src/lib/format';
 import { colors, radius, shadowSm, spacing, type } from '../../src/lib/theme';
+import { isAutoTrackingActive, startAutoTracking, stopAutoTracking } from '../../src/lib/backgroundLocationTask';
+import { listPendingTrips } from '../../src/lib/pendingTrips';
+import { isDemoMode } from '../../src/lib/demoMode';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { session, signOut, demoMode } = useAuth();
   const { readings, deleteReading } = useOdometerReadings();
   const reminder = odometerReminder(readings);
+
+  const [autoTrackingOn, setAutoTrackingOn] = useState(false);
+  const [autoTrackingBusy, setAutoTrackingBusy] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isDemoMode()) return; // auto-tracking needs real device permissions; skip in web demo mode
+      isAutoTrackingActive().then(setAutoTrackingOn);
+      listPendingTrips().then((trips) => setPendingCount(trips.length));
+    }, [])
+  );
+
+  const handleToggleAutoTracking = async (value: boolean) => {
+    setAutoTrackingBusy(true);
+    try {
+      if (value) {
+        const result = await startAutoTracking();
+        if (result.error) {
+          Alert.alert('Couldn’t turn on automatic tracking', result.error);
+          setAutoTrackingOn(false);
+          return;
+        }
+        setAutoTrackingOn(true);
+      } else {
+        await stopAutoTracking();
+        setAutoTrackingOn(false);
+      }
+    } finally {
+      setAutoTrackingBusy(false);
+    }
+  };
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete reading?', undefined, [
@@ -42,6 +78,58 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
       ) : null}
+
+      <Text style={styles.sectionLabel}>Automatic trip detection</Text>
+      {demoMode ? (
+        <View style={styles.infoCard}>
+          <Ionicons name="navigate-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.infoCardText}>
+            Not available in Demo Mode. On a real device, this watches your speed in the background
+            and detects when you start and stop driving — no button required.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.card}>
+            <View style={styles.toggleCardRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleCardTitle}>Auto-detect drives</Text>
+                <Text style={styles.toggleCardBody}>
+                  Watches your speed in the background and logs a drive automatically when you start
+                  and stop moving. Off by default — uses more battery, and requires “Always
+                  Allow” location access.
+                </Text>
+              </View>
+              {autoTrackingBusy ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Switch
+                  value={autoTrackingOn}
+                  onValueChange={handleToggleAutoTracking}
+                  trackColor={{ true: colors.primary, false: colors.border }}
+                />
+              )}
+            </View>
+          </View>
+          <Text style={styles.hint}>
+            Requires a standalone build (not Expo Go) to run reliably in the background — see the
+            README for how to build one.
+          </Text>
+          {pendingCount > 0 ? (
+            <Pressable style={styles.reminderBanner} onPress={() => router.push('/trip/pending')}>
+              <View style={styles.reminderIconWrap}>
+                <Ionicons name="checkmark-done-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.reminderText}>
+                {pendingCount} detected {pendingCount === 1 ? 'trip' : 'trips'} waiting to be classified
+              </Text>
+              <View style={styles.reminderButton}>
+                <Text style={styles.reminderButtonText}>Review</Text>
+              </View>
+            </Pressable>
+          ) : null}
+        </>
+      )}
 
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionLabel}>Odometer readings</Text>
@@ -185,6 +273,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginTop: spacing.sm,
     ...shadowSm,
+  },
+  toggleCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  toggleCardTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  toggleCardBody: {
+    fontSize: 12.5,
+    color: colors.textMuted,
+    lineHeight: 17,
   },
   readingRow: {
     flexDirection: 'row',

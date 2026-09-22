@@ -94,6 +94,10 @@ export default function TripsScreen() {
         }}
       />
 
+      <Pressable style={styles.trackFab} onPress={() => router.push('/trip/track')}>
+        <Ionicons name="navigate" size={22} color={colors.primary} />
+      </Pressable>
+
       <Pressable style={styles.fab} onPress={() => router.push('/trip/new')}>
         <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
@@ -197,6 +201,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.success,
     fontWeight: '800',
+  },
+  trackFab: {
+    position: 'absolute',
+    right: spacing.xl,
+    bottom: spacing.xl + 58 + spacing.md,
+    width: 46,
+    height: 46,
+    borderRadius: radius.lg,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadowSm,
   },
   fab: {
     position: 'absolute',

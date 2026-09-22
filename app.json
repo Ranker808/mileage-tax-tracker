@@ -34,6 +34,15 @@
           "photosPermission": "Allow the app to access your photos so you can attach receipt images to expenses.",
           "cameraPermission": "Allow the app to access your camera so you can photograph receipts."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow the app to use your location to track a trip's route and calculate its mileage while you're using the app.",
+          "locationAlwaysAndWhenInUsePermission": "Allow the app to use your location in the background so it can automatically detect when you start and stop driving, if you turn that on in Settings.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
       ]
     ],
     "experiments": {
