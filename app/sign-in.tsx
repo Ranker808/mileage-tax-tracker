@@ -16,11 +16,14 @@ import { useAuth } from '../src/hooks/useAuth';
 import { colors, radius, shadow, spacing, type } from '../src/lib/theme';
 
 export default function SignIn() {
-  const { session, signIn, enterDemoMode } = useAuth();
+  const { session, signIn, enterDemoMode, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
 
   if (session) {
     return <Redirect href="/(tabs)" />;
@@ -32,6 +35,18 @@ export default function SignIn() {
     const { error: signInError } = await signIn(email.trim(), password);
     setSubmitting(false);
     if (signInError) setError(signInError);
+  };
+
+  const handleResetPassword = async () => {
+    setError(null);
+    setResetSubmitting(true);
+    const { error: resetError } = await resetPassword(email.trim());
+    setResetSubmitting(false);
+    if (resetError) {
+      setError(resetError);
+    } else {
+      setResetSent(true);
+    }
   };
 
   return (
@@ -50,62 +65,134 @@ export default function SignIn() {
         </Text>
 
         <View style={styles.form}>
-          <View style={styles.inputWrap}>
-            <Ionicons name="mail-outline" size={18} color={colors.textFaint} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
-          <View style={styles.inputWrap}>
-            <Ionicons name="lock-closed-outline" size={18} color={colors.textFaint} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={colors.textFaint}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="password"
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
+          {forgotMode ? (
+            <>
+              <View style={styles.inputWrap}>
+                <Ionicons name="mail-outline" size={18} color={colors.textFaint} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor={colors.textFaint}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!resetSent}
+                />
+              </View>
 
-          {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={16} color={colors.danger} />
-              <Text style={styles.error}>{error}</Text>
-            </View>
-          ) : null}
+              {resetSent ? (
+                <View style={styles.resetSentBox}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.resetSentText}>
+                    If an account exists for that email, a reset link is on its way.
+                  </Text>
+                </View>
+              ) : null}
 
-          <Pressable
-            style={[styles.button, (submitting || !email || !password) && styles.buttonDisabled]}
-            onPress={handleSignIn}
-            disabled={submitting || !email || !password}
-          >
-            {submitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Sign In</Text>}
-          </Pressable>
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                  <Text style={styles.error}>{error}</Text>
+                </View>
+              ) : null}
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
+              {resetSent ? null : (
+                <Pressable
+                  style={[styles.button, (resetSubmitting || !email) && styles.buttonDisabled]}
+                  onPress={handleResetPassword}
+                  disabled={resetSubmitting || !email}
+                >
+                  {resetSubmitting ? (
+                    <ActivityIndicator color={colors.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Send Reset Link</Text>
+                  )}
+                </Pressable>
+              )}
 
-          <Pressable style={styles.demoButton} onPress={enterDemoMode}>
-            <Ionicons name="play-circle-outline" size={18} color={colors.primary} />
-            <Text style={styles.demoButtonText}>Try Demo</Text>
-          </Pressable>
-          <Text style={styles.demoHint}>
-            Explore the app with sample data — no account needed. Nothing you do in demo mode is
-            saved.
-          </Text>
+              <Pressable
+                style={styles.forgotLink}
+                onPress={() => {
+                  setForgotMode(false);
+                  setResetSent(false);
+                  setError(null);
+                }}
+              >
+                <Text style={styles.forgotLinkText}>Back to sign in</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <View style={styles.inputWrap}>
+                <Ionicons name="mail-outline" size={18} color={colors.textFaint} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor={colors.textFaint}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
+              <View style={styles.inputWrap}>
+                <Ionicons name="lock-closed-outline" size={18} color={colors.textFaint} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor={colors.textFaint}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="password"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+              </View>
+
+              <Pressable
+                style={styles.forgotLink}
+                onPress={() => {
+                  setForgotMode(true);
+                  setError(null);
+                }}
+              >
+                <Text style={styles.forgotLinkText}>Forgot password?</Text>
+              </Pressable>
+
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                  <Text style={styles.error}>{error}</Text>
+                </View>
+              ) : null}
+
+              <Pressable
+                style={[styles.button, (submitting || !email || !password) && styles.buttonDisabled]}
+                onPress={handleSignIn}
+                disabled={submitting || !email || !password}
+              >
+                {submitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Sign In</Text>}
+              </Pressable>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <Pressable style={styles.demoButton} onPress={enterDemoMode}>
+                <Ionicons name="play-circle-outline" size={18} color={colors.primary} />
+                <Text style={styles.demoButtonText}>Try Demo</Text>
+              </Pressable>
+              <Text style={styles.demoHint}>
+                Explore the app with sample data — no account needed. Nothing you do in demo mode is
+                saved.
+              </Text>
+            </>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -182,6 +269,29 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.danger,
     fontSize: 13.5,
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+  },
+  forgotLinkText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  resetSentBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.successMuted,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+  },
+  resetSentText: {
+    flex: 1,
+    color: colors.primaryDark,
+    fontSize: 13.5,
+    lineHeight: 18,
   },
   button: {
     backgroundColor: colors.ink,

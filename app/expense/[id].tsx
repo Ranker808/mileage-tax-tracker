@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ExpenseForm } from '../../src/components/ExpenseForm';
 import { fetchExpense, useExpenses } from '../../src/hooks/useExpenses';
 import { colors, spacing } from '../../src/lib/theme';
+import { confirmAsync } from '../../src/lib/confirm';
 import type { Expense } from '../../src/types/database';
 
 export default function ExpenseDetail() {
@@ -34,18 +35,11 @@ export default function ExpenseDetail() {
     );
   }
 
-  const handleDelete = () => {
-    Alert.alert('Delete expense?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await deleteExpense(expense.id);
-          if (!error) router.back();
-        },
-      },
-    ]);
+  const handleDelete = async () => {
+    const confirmed = await confirmAsync('Delete expense?', 'This cannot be undone.', 'Delete');
+    if (!confirmed) return;
+    const { error } = await deleteExpense(expense.id);
+    if (!error) router.back();
   };
 
   return (

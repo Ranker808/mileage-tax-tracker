@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { filterJitter, totalPathMiles, type GeoPoint } from '../../src/lib/gps';
 import { bestEffortAddress } from '../../src/lib/reverseGeocode';
 import { formatMiles } from '../../src/lib/format';
 import { colors, radius, shadow, spacing, type } from '../../src/lib/theme';
+import { confirmAsync } from '../../src/lib/confirm';
 
 type Status = 'requesting' | 'denied' | 'ready' | 'tracking' | 'finishing';
 
@@ -74,10 +75,17 @@ export default function TrackTrip() {
     subscriptionRef.current = null;
 
     if (points.length < 2) {
-      Alert.alert('Trip too short', 'Not enough movement was recorded to log a trip.', [
-        { text: 'Discard', style: 'destructive', onPress: () => router.back() },
-        { text: 'Keep Trying', style: 'cancel', onPress: () => setStatus('tracking') },
-      ]);
+      const discard = await confirmAsync(
+        'Trip too short',
+        'Not enough movement was recorded to log a trip.',
+        'Discard',
+        'Keep Trying'
+      );
+      if (discard) {
+        router.back();
+      } else {
+        setStatus('tracking');
+      }
       return;
     }
 

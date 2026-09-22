@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from '../../src/components/EmptyState';
 import { listPendingTrips, removePendingTrip, type PendingTrip } from '../../src/lib/pendingTrips';
 import { formatDate, formatMiles } from '../../src/lib/format';
 import { colors, radius, shadowSm, spacing, type } from '../../src/lib/theme';
+import { confirmAsync } from '../../src/lib/confirm';
 
 export default function PendingTripsScreen() {
   const router = useRouter();
@@ -25,18 +26,15 @@ export default function PendingTripsScreen() {
     }, [refresh])
   );
 
-  const handleDiscard = (trip: PendingTrip) => {
-    Alert.alert('Discard this trip?', 'It was detected automatically — discarding it will not affect anything else.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: async () => {
-          await removePendingTrip(trip.id);
-          refresh();
-        },
-      },
-    ]);
+  const handleDiscard = async (trip: PendingTrip) => {
+    const confirmed = await confirmAsync(
+      'Discard this trip?',
+      'It was detected automatically — discarding it will not affect anything else.',
+      'Discard'
+    );
+    if (!confirmed) return;
+    await removePendingTrip(trip.id);
+    refresh();
   };
 
   const handleClassify = (trip: PendingTrip) => {

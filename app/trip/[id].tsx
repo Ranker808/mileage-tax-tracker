@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TripForm } from '../../src/components/TripForm';
@@ -7,6 +7,7 @@ import { VenturePickerModal } from '../../src/components/VenturePickerModal';
 import { fetchTrip, useTrips } from '../../src/hooks/useTrips';
 import { useVentures } from '../../src/hooks/useVentures';
 import { colors, radius, spacing } from '../../src/lib/theme';
+import { confirmAsync } from '../../src/lib/confirm';
 import type { Trip } from '../../src/types/database';
 
 export default function TripDetail() {
@@ -38,18 +39,11 @@ export default function TripDetail() {
     );
   }
 
-  const handleDelete = () => {
-    Alert.alert('Delete trip?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await deleteTrip(trip.id);
-          if (!error) router.back();
-        },
-      },
-    ]);
+  const handleDelete = async () => {
+    const confirmed = await confirmAsync('Delete trip?', 'This cannot be undone.', 'Delete');
+    if (!confirmed) return;
+    const { error } = await deleteTrip(trip.id);
+    if (!error) router.back();
   };
 
   const currentVenture = ventures.find((v) => v.id === trip.venture_id);

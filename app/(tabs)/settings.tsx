@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/hooks/useAuth';
@@ -9,12 +9,25 @@ import { colors, radius, shadowSm, spacing, type } from '../../src/lib/theme';
 import { isAutoTrackingActive, startAutoTracking, stopAutoTracking } from '../../src/lib/backgroundLocationTask';
 import { listPendingTrips } from '../../src/lib/pendingTrips';
 import { isDemoMode } from '../../src/lib/demoMode';
+import { resetDemoStore } from '../../src/lib/demoStore';
+import { confirmAsync, notifyAsync } from '../../src/lib/confirm';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { session, signOut, demoMode } = useAuth();
-  const { readings, deleteReading } = useOdometerReadings();
+  const { readings, deleteReading, refresh: refreshReadings } = useOdometerReadings();
   const reminder = odometerReminder(readings);
+
+  const handleResetDemoData = async () => {
+    const confirmed = await confirmAsync(
+      'Reset demo data?',
+      'This restores the sample ventures, trips, and expenses back to their starting state.',
+      'Reset'
+    );
+    if (!confirmed) return;
+    resetDemoStore();
+    refreshReadings();
+  };
 
   const [autoTrackingOn, setAutoTrackingOn] = useState(false);
   const [autoTrackingBusy, setAutoTrackingBusy] = useState(false);
@@ -34,7 +47,7 @@ export default function SettingsScreen() {
       if (value) {
         const result = await startAutoTracking();
         if (result.error) {
-          Alert.alert('Couldn’t turn on automatic tracking', result.error);
+          await notifyAsync('Couldn’t turn on automatic tracking', result.error);
           setAutoTrackingOn(false);
           return;
         }
@@ -48,11 +61,9 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete reading?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteReading(id) },
-    ]);
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirmAsync('Delete reading?', undefined, 'Delete');
+    if (confirmed) deleteReading(id);
   };
 
   return (
@@ -60,10 +71,16 @@ export default function SettingsScreen() {
       {demoMode ? (
         <View style={styles.demoBanner}>
           <Ionicons name="flask-outline" size={18} color={colors.warning} />
-          <Text style={styles.demoBannerText}>
-            You're in Demo Mode. Sample data only — nothing here is saved, and it resets if you
-            reload. Sign out to connect a real account.
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.demoBannerText}>
+              You're in Demo Mode. Sample data only — nothing here is saved, and it resets if you
+              reload. Sign out to connect a real account.
+            </Text>
+            <Pressable style={styles.resetDemoButton} onPress={handleResetDemoData} hitSlop={6}>
+              <Ionicons name="refresh" size={13} color="#92400E" />
+              <Text style={styles.resetDemoButtonText}>Reset demo data</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
 
@@ -201,10 +218,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   demoBannerText: {
-    flex: 1,
     color: '#92400E',
     fontSize: 13,
     lineHeight: 18,
+  },
+  resetDemoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+  },
+  resetDemoButtonText: {
+    color: '#92400E',
+    fontWeight: '700',
+    fontSize: 12.5,
+    textDecorationLine: 'underline',
   },
   reminderBanner: {
     flexDirection: 'row',
